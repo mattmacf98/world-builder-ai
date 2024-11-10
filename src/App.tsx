@@ -19,6 +19,9 @@ import { useEffect, useRef, useState } from 'react';
 import { Container, Row, Col, Form, Spinner, Button } from 'react-bootstrap';
 import './App.css'
 import { AISession } from './window';
+import { IGLTFX, INode, IReferencedAsset } from './glTFx/IGLTFX';
+import { GLTFXLoader } from './glTFx/glTFXLoader';
+import { WRLD_parametrized_asset } from './glTFx/extensions/WRLD_parametrized_asset';
 
 enum ObjectType {
   Sphere = 'sphere',
@@ -32,29 +35,16 @@ enum LightType {
   Spot = 'spot',
 }
 
-interface IGLTFXNode {
-  name: string;
-  asset: number;
-  translation: [number, number, number];
-  rotation: [number, number, number, number];
-  scale: [number, number, number];
-}
-
-interface IGLTFXAsset {
-  name: string;
-  uri?: string;
-  mesh?: AbstractMesh;
-}
-
-interface IGLTFX {
-  nodes: IGLTFXNode[];
-  assets: IGLTFXAsset[];
-}
+GLTFXLoader.RegisterExtension("WRLD_parametrized_asset", (loader) => {
+  return new WRLD_parametrized_asset(loader);
+});
 
 class WorldBuilder {
   private _scene: Scene;
-  private _worldAssets: IGLTFXAsset[];
-  private _worldNodes: IGLTFXNode[];
+  private _worldAssets: IReferencedAsset[];
+  private _worldNodes: INode[];
+  private _worldExtensionsUsed: Set<string>;
+  private _worldExtensionsRequired: Set<string>;
   private _gizmoManager: GizmoManager;
   private _selectedMesh: AbstractMesh | null;
   private _selectedNodeIndex: number;
@@ -63,6 +53,8 @@ class WorldBuilder {
     this._scene = scene;
     this._worldAssets = [];
     this._worldNodes = [];
+    this._worldExtensionsUsed = new Set<string>();
+    this._worldExtensionsRequired = new Set<string>();
     this._gizmoManager = new GizmoManager(scene);
     this._selectedMesh = null;
     this._selectedNodeIndex = -1;
@@ -102,21 +94,39 @@ class WorldBuilder {
     });
   }
 
+  async loadGLTFX(gltfx: IGLTFX) {
+    this._worldAssets.forEach(asset => asset.mesh?.dispose());
+    const glTFxLoader = new GLTFXLoader();
+    await glTFxLoader.loadAsync(this._scene, gltfx, "", undefined, undefined);
+
+    const worldAssets = [];
+    for (let i = 0; i < gltfx.assets.length; i++) {
+      const asset = gltfx.assets[i];
+      worldAssets.push({ name: asset.name, uri: asset.uri, mesh: this._scene.meshes[i], extensions: asset.extensions });
+    }
+    this._worldAssets = worldAssets;
+    this._worldNodes = gltfx.nodes;
+    this._worldExtensionsUsed = new Set(gltfx.extensionsUsed);
+    this._worldExtensionsRequired = new Set(gltfx.extensionsRequired);
+  }
+
   getGlTFX() {
     const gltfx: IGLTFX = {
-      assets: this._worldAssets.map(asset => ({ name: asset.name, uri: asset.uri})),
-      nodes: []
+      assets: this._worldAssets.map(asset => ({ name: asset.name, uri: asset.uri, extensions: asset.extensions})),
+      nodes: [],
+      extensionsUsed: Array.from(this._worldExtensionsUsed),
+      extensionsRequired: Array.from(this._worldExtensionsRequired),
     };
 
     for (const node of this._worldNodes) {
-      const asset = this._worldAssets[node.asset];
+      const asset = this._worldAssets[node.asset!];
       const quaternion =  asset.mesh!.rotationQuaternion ?? asset.mesh!.rotation.toQuaternion();
       gltfx.nodes.push({
         name: node.name,
         asset: node.asset,
         translation: [asset.mesh!.position.x, asset.mesh!.position.y, asset.mesh!.position.z],
         rotation: [quaternion.x, quaternion.y, quaternion.z, quaternion.w],
-        scale: [asset.mesh!.scaling.x, asset.mesh!.scaling.y, asset.mesh!.scaling.z],
+        scale: [asset.mesh!.scaling.x, asset.mesh!.scaling.y, asset.mesh!.scaling.z]
       });
     }
 
@@ -169,7 +179,7 @@ class WorldBuilder {
 
   selectMesh(index: number) {
     if (index < 0 || index >= this._worldNodes.length) return;
-    this._selectedMesh = this._worldAssets[this._worldNodes[index].asset].mesh!;
+    this._selectedMesh = this._worldAssets[this._worldNodes[index].asset!].mesh!;
     this._gizmoManager.attachToMesh(this._selectedMesh);
   }
 
@@ -246,16 +256,20 @@ class WorldBuilder {
   addObject(type: ObjectType) {
     switch (type) {
       case ObjectType.Box:
-        const box = MeshBuilder.CreateBox('box', { size: 2 }, this._scene);
+        const box = MeshBuilder.CreateBox('box', { size: 1 }, this._scene);
         this._gizmoManager.attachableMeshes?.push(box);
-        this._worldAssets.push({ name: box.name, mesh: box });
+        this._worldAssets.push({ name: box.name, mesh: box, extensions: { WRLD_parametrized_asset: { type: "box" } } });
         this._worldNodes.push({ name: box.name, asset: this._worldAssets.length - 1, translation: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] });
+        this._worldExtensionsUsed.add("WRLD_parametrized_asset");
+        this._worldExtensionsRequired.add("WRLD_parametrized_asset");
         break;
       case ObjectType.Sphere:
-        const sphere = MeshBuilder.CreateSphere('sphere', { diameter: 2 }, this._scene);
+        const sphere = MeshBuilder.CreateSphere('sphere', { diameter: 1 }, this._scene);
         this._gizmoManager.attachableMeshes?.push(sphere);
-        this._worldAssets.push({ name: sphere.name, mesh: sphere });
+        this._worldAssets.push({ name: sphere.name, mesh: sphere, extensions: { WRLD_parametrized_asset: { type: "sphere" } } });
         this._worldNodes.push({ name: sphere.name, asset: this._worldAssets.length - 1, translation: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] });
+        this._worldExtensionsUsed.add("WRLD_parametrized_asset");
+        this._worldExtensionsRequired.add("WRLD_parametrized_asset");
         break;
     }
   }
@@ -558,6 +572,32 @@ const App = () => {
               URL.revokeObjectURL(url);
             }
           }}>Export GLTFX</Button>
+          
+          <input
+            type="file"
+            accept=".gltfx"
+            style={{ display: 'none' }}
+            id="gltfx-file-input"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                  try {
+                    const gltfx = JSON.parse(event.target?.result as string);
+                    console.log(gltfx);
+                    worldBuilder.current?.loadGLTFX(gltfx);
+                  } catch (error) {
+                    console.error("Error parsing GLTFX file:", error);
+                  }
+                };
+                reader.readAsText(file);
+              }
+            }}
+          />
+          <Button onClick={() => {
+            document.getElementById('gltfx-file-input')?.click();
+          }}>Load GLTFX</Button>
         </Col>
       </Row>
     </Container>
