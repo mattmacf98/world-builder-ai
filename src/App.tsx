@@ -108,22 +108,45 @@ class WorldBuilder {
     this._worldNodes = gltfx.nodes;
     this._worldExtensionsUsed = new Set(gltfx.extensionsUsed);
     this._worldExtensionsRequired = new Set(gltfx.extensionsRequired);
+
+    this._gizmoManager.attachableMeshes = this._worldAssets.map(asset => asset.mesh!);
   }
 
   getGlTFX() {
     const gltfx: IGLTFX = {
-      assets: this._worldAssets.map(asset => ({ name: asset.name, uri: asset.uri, extensions: asset.extensions})),
+      assets: [],
       nodes: [],
       extensionsUsed: Array.from(this._worldExtensionsUsed),
       extensionsRequired: Array.from(this._worldExtensionsRequired),
     };
 
+    const assets = [];
+    const assetToAssetMap = new Map<String, number>();
+    for (let i = 0; i < this._worldAssets.length; i++) {
+      const asset = this._worldAssets[i];
+      const assetHash = JSON.stringify({
+        name: asset.name,
+        uri: asset.uri,
+        extensions: asset.extensions
+      });
+      if (!assetToAssetMap.has(assetHash)) {
+        assetToAssetMap.set(assetHash, i);
+        assets.push({name: asset.name, uri: asset.uri, extensions: asset.extensions});
+      }
+    }
+
     for (const node of this._worldNodes) {
       const asset = this._worldAssets[node.asset!];
+      const assetHash = JSON.stringify({
+        name: asset.name,
+        uri: asset.uri,
+        extensions: asset.extensions
+      });
+      const assetIndex = assetToAssetMap.get(assetHash);
       const quaternion =  asset.mesh!.rotationQuaternion ?? asset.mesh!.rotation.toQuaternion();
       gltfx.nodes.push({
         name: node.name,
-        asset: node.asset,
+        asset: assetIndex,
         translation: [asset.mesh!.position.x, asset.mesh!.position.y, asset.mesh!.position.z],
         rotation: [quaternion.x, quaternion.y, quaternion.z, quaternion.w],
         scale: [asset.mesh!.scaling.x, asset.mesh!.scaling.y, asset.mesh!.scaling.z]
