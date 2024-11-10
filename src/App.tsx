@@ -16,7 +16,7 @@ import {
 } from '@babylonjs/core';
 import "@babylonjs/loaders/glTF";
 import { useEffect, useRef, useState } from 'react';
-import { Container, Row, Col, Form, Spinner } from 'react-bootstrap';
+import { Container, Row, Col, Form, Spinner, Button } from 'react-bootstrap';
 import './App.css'
 import { AISession } from './window';
 
@@ -32,22 +32,40 @@ enum LightType {
   Spot = 'spot',
 }
 
-interface IWorldNode {
-  mesh: AbstractMesh;
+interface IGLTFXNode {
   name: string;
+  asset: number;
+  translation: [number, number, number];
+  rotation: [number, number, number, number];
+  scale: [number, number, number];
+}
+
+interface IGLTFXAsset {
+  name: string;
+  uri?: string;
+  mesh?: AbstractMesh;
+}
+
+interface IGLTFX {
+  nodes: IGLTFXNode[];
+  assets: IGLTFXAsset[];
 }
 
 class WorldBuilder {
   private _scene: Scene;
-  private _worldNodes: IWorldNode[];
+  private _worldAssets: IGLTFXAsset[];
+  private _worldNodes: IGLTFXNode[];
   private _gizmoManager: GizmoManager;
   private _selectedMesh: AbstractMesh | null;
+  private _selectedNodeIndex: number;
 
   constructor(scene: Scene) {
     this._scene = scene;
+    this._worldAssets = [];
     this._worldNodes = [];
     this._gizmoManager = new GizmoManager(scene);
     this._selectedMesh = null;
+    this._selectedNodeIndex = -1;
     this._gizmoManager.positionGizmoEnabled = true;
     this._gizmoManager.rotationGizmoEnabled = false;
     this._gizmoManager.scaleGizmoEnabled = false;
@@ -84,6 +102,27 @@ class WorldBuilder {
     });
   }
 
+  getGlTFX() {
+    const gltfx: IGLTFX = {
+      assets: this._worldAssets.map(asset => ({ name: asset.name, uri: asset.uri})),
+      nodes: []
+    };
+
+    for (const node of this._worldNodes) {
+      const asset = this._worldAssets[node.asset];
+      const quaternion =  asset.mesh!.rotationQuaternion ?? asset.mesh!.rotation.toQuaternion();
+      gltfx.nodes.push({
+        name: node.name,
+        asset: node.asset,
+        translation: [asset.mesh!.position.x, asset.mesh!.position.y, asset.mesh!.position.z],
+        rotation: [quaternion.x, quaternion.y, quaternion.z, quaternion.w],
+        scale: [asset.mesh!.scaling.x, asset.mesh!.scaling.y, asset.mesh!.scaling.z],
+      });
+    }
+
+    return gltfx;
+  }
+
   get worldNodes() {
     return this._worldNodes;
   }
@@ -94,7 +133,8 @@ class WorldBuilder {
       container.addAllToScene();
       if (container.meshes[0]) {
         this._gizmoManager.attachableMeshes?.push(container.meshes[0]);
-        this._worldNodes.push({ mesh: container.meshes[0], name: container.meshes[0].name });
+        this._worldAssets.push({ name: file.name, uri: file.name, mesh: container.meshes[0]});
+        this._worldNodes.push({ name: file.name, asset: this._worldAssets.length - 1, translation: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] });
       }
     } catch (error) {
       console.error("Error loading GLB file:", error);
@@ -129,8 +169,8 @@ class WorldBuilder {
 
   selectMesh(index: number) {
     if (index < 0 || index >= this._worldNodes.length) return;
-    this._selectedMesh = this._worldNodes[index].mesh;
-    this._gizmoManager.attachToMesh(this._worldNodes[index].mesh);
+    this._selectedMesh = this._worldAssets[this._worldNodes[index].asset].mesh!;
+    this._gizmoManager.attachToMesh(this._selectedMesh);
   }
 
   setTranslateX(amount: number) {
@@ -196,9 +236,10 @@ class WorldBuilder {
   deleteSelectedObject() {
     if (this._selectedMesh) {
       this._gizmoManager.attachToMesh(null);
-      this._worldNodes = this._worldNodes.filter(node => node.mesh !== this._selectedMesh);
+      this._worldNodes.splice(this._selectedNodeIndex, 1);
       this._selectedMesh.dispose();
       this._selectedMesh = null;
+      this._selectedNodeIndex = -1;
     }
   }
 
@@ -207,12 +248,14 @@ class WorldBuilder {
       case ObjectType.Box:
         const box = MeshBuilder.CreateBox('box', { size: 2 }, this._scene);
         this._gizmoManager.attachableMeshes?.push(box);
-        this._worldNodes.push({ mesh: box, name: box.name });
+        this._worldAssets.push({ name: box.name, mesh: box });
+        this._worldNodes.push({ name: box.name, asset: this._worldAssets.length - 1, translation: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] });
         break;
       case ObjectType.Sphere:
         const sphere = MeshBuilder.CreateSphere('sphere', { diameter: 2 }, this._scene);
         this._gizmoManager.attachableMeshes?.push(sphere);
-        this._worldNodes.push({ mesh: sphere, name: sphere.name });
+        this._worldAssets.push({ name: sphere.name, mesh: sphere });
+        this._worldNodes.push({ name: sphere.name, asset: this._worldAssets.length - 1, translation: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] });
         break;
     }
   }
@@ -235,7 +278,8 @@ class WorldBuilder {
     }
 
     const lightSphere = MeshBuilder.CreateSphere('lightBulb', { diameter: 0.5 }, this._scene);
-    this._worldNodes.push({ mesh: lightSphere, name: lightSphere.name });
+    this._worldAssets.push({ name: lightSphere.name, mesh: lightSphere });
+    this._worldNodes.push({ name: lightSphere.name, asset: this._worldAssets.length - 1, translation: [0, 1, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] });
     lightSphere.position = new Vector3(0, 1, 0);
     lightSphere.isPickable = true;
     lightSphere.visibility = 0.5;
@@ -433,10 +477,10 @@ const App = () => {
             <Form.Control 
               type="file" 
               accept=".glb"
-              onChange={(e) => {
+              onChange={async (e) => {
                 const file = (e.target as HTMLInputElement).files?.[0];
                 if (file && worldBuilder.current) {
-                  worldBuilder.current.loadGLBModel(file);
+                  await worldBuilder.current.loadGLBModel(file)
                   triggerRerender();
                 }
               }}
@@ -482,6 +526,8 @@ const App = () => {
             />
           </Form.Group>
 
+          {aiLoading && <Spinner animation="border" className="mt-3" />}
+
           <Form.Group className="mb-3">
             <Form.Label>World Objects</Form.Label>
             <div className="border rounded p-2" style={{ maxHeight: '200px', overflowY: 'auto' }}>
@@ -498,7 +544,20 @@ const App = () => {
             </div>
           </Form.Group>
 
-          {aiLoading && <Spinner animation="border" className="mt-3" />}
+          <Button onClick={() => {
+            const gltfx = worldBuilder.current?.getGlTFX();
+            if (gltfx) {
+              const blob = new Blob([JSON.stringify(gltfx, null, 2)], { type: 'application/json' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = 'world.gltfx';
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+            }
+          }}>Export GLTFX</Button>
         </Col>
       </Row>
     </Container>
