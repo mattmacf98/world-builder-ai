@@ -22,6 +22,9 @@ import { AISession } from './window';
 import { IGLTFX, INode, IReferencedAsset } from './glTFx/IGLTFX';
 import { GLTFXLoader } from './glTFx/glTFXLoader';
 import { WRLD_parametrized_asset } from './glTFx/extensions/WRLD_parametrized_asset';
+import { useMutation, useQuery } from 'convex/react';
+import { api } from '../convex/_generated/api';
+import { Id } from '../convex/_generated/dataModel';
 
 enum ObjectType {
   Sphere = 'sphere',
@@ -120,8 +123,8 @@ class WorldBuilder {
       extensionsRequired: Array.from(this._worldExtensionsRequired),
     };
 
-    const assets = [];
     const assetToAssetMap = new Map<String, number>();
+    let numAssets = 0;
     for (let i = 0; i < this._worldAssets.length; i++) {
       const asset = this._worldAssets[i];
       const assetHash = JSON.stringify({
@@ -130,8 +133,9 @@ class WorldBuilder {
         extensions: asset.extensions
       });
       if (!assetToAssetMap.has(assetHash)) {
-        assetToAssetMap.set(assetHash, i);
-        assets.push({name: asset.name, uri: asset.uri, extensions: asset.extensions});
+        assetToAssetMap.set(assetHash, numAssets);
+        numAssets++;
+        gltfx.assets.push({name: asset.name, uri: asset.uri, extensions: asset.extensions});
       }
     }
 
@@ -371,10 +375,29 @@ const App = () => {
   const aiSession = useRef<AISession | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [forceUpdate, setForceUpdate] = useState(0);
+  const [textValue, setTextValue] = useState<string | null>(null);
+
+  const createWorld = useMutation(api.world.createWorld);
+  const generateUploadUrl = useMutation(api.world.generateUploadUrl);
+  const loadedWorld = useQuery(api.world.getWorld, textValue ? { id: textValue as Id<'worlds'> } : "skip");
 
   useEffect(() => {
     setUpAI();
   }, []);
+
+  useEffect(() => {
+    loadWorld();
+  }, [loadedWorld]);
+
+  const loadWorld = async () => {
+    if (loadedWorld) {
+      console.log(loadedWorld);
+      const gltfx = await fetch(loadedWorld.glTFXUrl!);
+      const gltfxText = await gltfx.text();
+      console.log(JSON.parse(gltfxText));
+      worldBuilder.current?.loadGLTFX(JSON.parse(gltfxText));
+    }
+  }
 
   const triggerRerender = () => {
     setForceUpdate(prev => prev + 1);
@@ -621,6 +644,40 @@ const App = () => {
           <Button onClick={() => {
             document.getElementById('gltfx-file-input')?.click();
           }}>Load GLTFX</Button>
+          <Button onClick={async () => {
+            const uploadUrl = await generateUploadUrl();
+            console.log(uploadUrl);
+            const gltfx = worldBuilder.current?.getGlTFX();
+            console.log(gltfx);
+            const blob = new Blob([JSON.stringify(gltfx, null, 2)], { type: 'application/json' });
+            const result = await fetch(uploadUrl, {
+              method: "POST",
+              headers: { "Content-Type": blob.type },
+              body: blob,
+            });
+
+            const response = await result.json();
+            const glTFXStorageId = response.storageId;
+
+            //TODO: upload support assets and create world record
+
+            await createWorld({ name: "test", glTFXStorageId, assetStorageIds: [] });
+          }}>Upload GLTFX</Button>
+
+          <Form.Group className="mb-3">
+            <Form.Label>World ID</Form.Label>
+            <Form.Control 
+              type="text"
+              id='world-id-input'
+              placeholder="Enter world ID..."
+            />
+            <Button 
+              className="mt-2"
+              onClick={() => setTextValue((document.getElementById('world-id-input') as HTMLInputElement).value)}
+            >
+              Load World
+            </Button>
+          </Form.Group>
         </Col>
       </Row>
     </Container>
