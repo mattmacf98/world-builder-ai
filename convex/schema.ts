@@ -5,8 +5,14 @@ export default defineSchema({
   worlds: defineTable({
     glTFXStorageId: v.string(),
     glTFXUrl: v.optional(v.string()),
-    assetStorageIds: v.array(v.string()),
-    assetUrls: v.optional(v.array(v.string())),
+    assetUriToStorageIds: v.array(v.object({
+      uri: v.string(),
+      storageId: v.string(),
+    })),
+    assetUriToUrls: v.optional(v.array(v.object({
+      uri: v.string(),
+      url: v.string(),
+    }))),
     createdAt: v.number(),
     name: v.string(),
   }),

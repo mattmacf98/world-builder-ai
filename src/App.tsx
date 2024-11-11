@@ -103,9 +103,11 @@ class WorldBuilder {
     await glTFxLoader.loadAsync(this._scene, gltfx, "", undefined, undefined);
 
     const worldAssets = [];
-    for (let i = 0; i < gltfx.assets.length; i++) {
+    const loadedMeshes = this._scene.transformNodes[0]!.getChildren();
+    for (let i = 0; i < loadedMeshes.length; i++) {
+      const mesh = loadedMeshes[i] as AbstractMesh;
       const asset = gltfx.assets[i];
-      worldAssets.push({ name: asset.name, uri: asset.uri, mesh: this._scene.meshes[i], extensions: asset.extensions });
+      worldAssets.push({ name: asset.name, uri: asset.uri, mesh: mesh, extensions: asset.extensions });
     }
     this._worldAssets = worldAssets;
     this._worldNodes = gltfx.nodes;
@@ -372,6 +374,7 @@ Now respond to the following user request
 const App = () => {
   const canvasRef = useRef(null);
   const worldBuilder = useRef<WorldBuilder | null>(null);
+  const glbFiles = useRef<File[]>([]);
   const aiSession = useRef<AISession | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [forceUpdate, setForceUpdate] = useState(0);
@@ -391,11 +394,19 @@ const App = () => {
 
   const loadWorld = async () => {
     if (loadedWorld) {
-      console.log(loadedWorld);
       const gltfx = await fetch(loadedWorld.glTFXUrl!);
       const gltfxText = await gltfx.text();
-      console.log(JSON.parse(gltfxText));
-      worldBuilder.current?.loadGLTFX(JSON.parse(gltfxText));
+
+      const glTFXJson = JSON.parse(gltfxText);
+      glTFXJson["assets"].forEach((asset: IReferencedAsset) => {
+        if (asset.uri && loadedWorld.assetUriToUrls && loadedWorld.assetUriToUrls) {
+          const url = loadedWorld.assetUriToUrls.find(item => item.uri === asset.uri)?.url;
+          if (url) {
+            asset.uri = url;
+          }
+        }
+      });
+      worldBuilder.current?.loadGLTFX(glTFXJson);
     }
   }
 
@@ -540,6 +551,7 @@ const App = () => {
               onChange={async (e) => {
                 const file = (e.target as HTMLInputElement).files?.[0];
                 if (file && worldBuilder.current) {
+                  glbFiles.current.push(file);
                   await worldBuilder.current.loadGLBModel(file)
                   triggerRerender();
                 }
@@ -659,9 +671,28 @@ const App = () => {
             const response = await result.json();
             const glTFXStorageId = response.storageId;
 
-            //TODO: upload support assets and create world record
+            const assetUriToStorageIds = [];
+            for (const asset of gltfx?.assets ?? []) {
+              if (asset.uri) {
+                const file = glbFiles.current.find(file => file.name === asset.uri);
+                if (file) {
+                  const uploadUrl = await generateUploadUrl();
+                  const blob = new Blob([file], { type: "model/gltf-binary" });
+                  const result = await fetch(uploadUrl, {
+                    method: "POST",
+                    headers: { "Content-Type": "model/gltf-binary" },
+                    body: blob,
+                  });
+                  const response = await result.json();
+                  const assetStorageId = response.storageId;
+                  assetUriToStorageIds.push({ uri: asset.uri, storageId: assetStorageId });
+                }
+              }
+            }
 
-            await createWorld({ name: "test", glTFXStorageId, assetStorageIds: [] });
+            console.log(assetUriToStorageIds);
+
+            await createWorld({ name: "test", glTFXStorageId, assetUriToStorageIds });
           }}>Upload GLTFX</Button>
 
           <Form.Group className="mb-3">

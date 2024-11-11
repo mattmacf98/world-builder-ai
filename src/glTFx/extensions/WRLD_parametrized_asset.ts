@@ -28,12 +28,12 @@ export class WRLD_parametrized_asset implements IGLTFXLoaderExtension {
         
         const parametrizedType = this._parametrizedAsset.extensions.WRLD_parametrized_asset.type;
         if (parametrizedType === "sphere") {
-            const sphere = MeshBuilder.CreateSphere("sphere", {diameter: 1}, this._loader.babylonScene);
+            const sphere = MeshBuilder.CreateSphere("sphere", {diameter: 1});
             const container = new AssetContainer();
             container.meshes.push(sphere);
             return Promise.resolve(container);
         } else if (parametrizedType === "box") {
-            const box = MeshBuilder.CreateBox("box", {size: 1}, this._loader.babylonScene);
+            const box = MeshBuilder.CreateBox("box", {size: 1});
             const container = new AssetContainer();
             container.meshes.push(box);
             return Promise.resolve(container);
