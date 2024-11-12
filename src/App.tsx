@@ -18,6 +18,7 @@ import { Id } from '../convex/_generated/dataModel';
 import { WorldBuilder, ObjectType, LightType } from './WorldBuilder';
 import { useAI } from './hooks/useAI';
 import { useSpeechRecognition } from './hooks/useSpeechRecognition';
+import { fileService } from './fileService';
 
 GLTFXLoader.RegisterExtension("WRLD_parametrized_asset", (loader) => {
   return new WRLD_parametrized_asset(loader);
@@ -53,6 +54,8 @@ AI: alrighty here you go {"actions":[{"delete": {}}]}
 
 Now respond to the following user request
 `
+
+const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 const App = () => {
   const canvasRef = useRef(null);
@@ -202,35 +205,6 @@ const App = () => {
     }
   }
 
-  const handleExportGLTFX = () => {
-    const gltfx = worldBuilder.current?.getGlTFX();
-    if (gltfx) {
-      const blob = new Blob([JSON.stringify(gltfx, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'world.gltfx';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    }
-  };
-
-  const handleLoadGLTFX = (file: File) => {
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const gltfx = JSON.parse(event.target?.result as string);
-        console.log(gltfx);
-        worldBuilder.current?.loadGLTFX(gltfx);
-      } catch (error) {
-        console.error("Error parsing GLTFX file:", error);
-      }
-    };
-    reader.readAsText(file);
-  };
-
   const handleUploadGLTFX = async () => {
     const uploadUrl = await generateUploadUrl();
     const gltfx = worldBuilder.current?.getGlTFX();
@@ -276,7 +250,7 @@ const App = () => {
   return (
     <Container fluid className="p-0">
       <Row className="g-0">
-      <Col md={10}>
+        <Col md={10}>
           <canvas
             ref={canvasRef}
             style={{ width: '100%', height: '100vh' }}
@@ -375,7 +349,7 @@ const App = () => {
             </div>
           </Form.Group>
 
-          <Button onClick={handleExportGLTFX}>Export GLTFX</Button>
+          <Button onClick={() => fileService.exportGLTFX(worldBuilder.current?.getGlTFX())}>Export GLTFX</Button>
           
           <input
             type="file"
@@ -384,7 +358,12 @@ const App = () => {
             id="gltfx-file-input"
             onChange={(e) => {
               const file = e.target.files?.[0];
-              if (file) handleLoadGLTFX(file);
+              if (file) {
+                fileService.loadGLTFX(file).then(gltfx => {
+                  worldBuilder.current?.loadGLTFX(gltfx);
+                  triggerRerender();
+                });
+              }
             }}
           />
           <Button onClick={() => {
@@ -411,7 +390,5 @@ const App = () => {
     </Container>
   )
 }
-
-const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 export default App
