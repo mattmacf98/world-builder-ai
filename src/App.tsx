@@ -18,7 +18,7 @@ import "@babylonjs/loaders/glTF";
 import { useEffect, useRef, useState } from 'react';
 import { Container, Row, Col, Form, Spinner, Button } from 'react-bootstrap';
 import './App.css'
-import { AISession } from './window';
+import { AISession, SpeechRecognition, SpeechRecognitionEvent } from './window';
 import { IGLTFX, INode, IReferencedAsset } from './glTFx/IGLTFX';
 import { GLTFXLoader } from './glTFx/glTFXLoader';
 import { WRLD_parametrized_asset } from './glTFx/extensions/WRLD_parametrized_asset';
@@ -377,8 +377,12 @@ const App = () => {
   const glbFiles = useRef<File[]>([]);
   const aiSession = useRef<AISession | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
+  const [aiChatText, setAiChatText] = useState<string | null>(null);
   const [forceUpdate, setForceUpdate] = useState(0);
   const [textValue, setTextValue] = useState<string | null>(null);
+  const [isListening, setIsListening] = useState(false);
+  const recognition = useRef<SpeechRecognition | null>(null);
+
 
   const createWorld = useMutation(api.world.createWorld);
   const generateUploadUrl = useMutation(api.world.generateUploadUrl);
@@ -386,6 +390,26 @@ const App = () => {
 
   useEffect(() => {
     setUpAI();
+  }, []);
+
+  useEffect(() => {
+    // Initialize speech recognition
+    if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      recognition.current = new SpeechRecognition();
+      recognition.current.continuous = false;
+      recognition.current.interimResults = false;
+
+      recognition.current.onresult = async (event: SpeechRecognitionEvent) => {
+        const transcript = event.results[0][0].transcript;
+        setAiChatText(transcript);
+        executeAIChat(transcript);
+      };
+
+      recognition.current.onend = () => {
+        setIsListening(false);
+      };
+    }
   }, []);
 
   useEffect(() => {
@@ -519,6 +543,17 @@ const App = () => {
     }
   }, []);
 
+  const executeAIChat = async (userPrompt: string) => {
+    setAiLoading(true);
+    const result = await aiSession.current?.prompt(prompt + "\n\nUser: " + userPrompt);
+    if (result) {
+      console.log("result", result);
+      parseAIResponse(result);
+    }
+    setAiChatText("");
+    setAiLoading(false);
+  }
+
   return (
     <Container fluid className="p-0">
       <Row className="g-0">
@@ -575,24 +610,33 @@ const App = () => {
 
           <Form.Group className="mb-3" >
             <Form.Label>Chat</Form.Label>
+            <div className="d-flex gap-2 mb-2">
+              <Button 
+                variant={isListening ? "danger" : "primary"}
+                onClick={() => {
+                  if (isListening) {
+                    recognition.current?.stop();
+                  } else {
+                    recognition.current?.start();
+                    setIsListening(true);
+                  }
+                }}
+              >
+                {isListening ? "Stop Listening" : "Start Listening"}
+              </Button>
+            </div>
             <Form.Control 
               as="textarea" 
               disabled={aiLoading}
+              value={aiChatText ?? ""}
+              onChange={(e) => setAiChatText(e.target.value)}
               rows={3} 
               placeholder="Chat with the AI here..."
               style={{ resize: 'vertical' }}
               onKeyDown={async (e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
-                  setAiLoading(true);
                   e.preventDefault();
-                  const userPrompt = e.currentTarget.value;
-                  e.currentTarget.value = '';
-
-                  const result = await aiSession.current?.prompt(prompt + "\n\nUser: " + userPrompt);
-                  if (result) {
-                    parseAIResponse(result);
-                  }
-                  setAiLoading(false);
+                  executeAIChat(aiChatText ?? "");
                 }
               }}
             />
