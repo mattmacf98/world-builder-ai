@@ -27,3 +27,7 @@ export const getWorld = query(async (ctx, { id }: { id: Id<"worlds"> }) => {
     }
     return world;
 });
+
+export const getWorlds = query(async (ctx) => {
+    return await ctx.db.query("worlds").collect();
+});
