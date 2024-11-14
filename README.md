@@ -1,7 +1,5 @@
 # TODO
 - react flow for macro creation
-    - react flow cycle detection
-    - synthesize node flow into macro and execution json
     - execute the json with an engine
 - allow invoking macros from world builder
 - AI calls macros

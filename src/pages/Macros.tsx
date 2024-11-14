@@ -28,6 +28,10 @@ enum MacroNodeType {
 
 interface IValueSocket {
   id: string;
+  value?: any,
+  referencedNodeId?: number,
+  referencedValueId?: string,
+  inputIndex?: number,
   type: ValueType;
 }
 
@@ -37,6 +41,7 @@ interface IMacroNodeData {
   outputValues: IValueSocket[];
   inputValues: IValueSocket[];
   inlineInputValues: IValueSocket[];
+  inputParameter?: IValueSocket;
 }
 
 const InputNode: IMacroNodeData = {
@@ -45,6 +50,7 @@ const InputNode: IMacroNodeData = {
   outputValues: [],
   inputValues: [],
   inlineInputValues: [],
+  inputParameter: {id: 'value', type: ValueType.INT},
 }
 
 const StartNode: IMacroNodeData = {
@@ -238,9 +244,9 @@ const MacroNodeTypeToColor: Record<MacroNodeType, string> = {
   [MacroNodeType.INPUT]: '#4CAF50',
 }
 
-const CustomNode = ({ data }: { data: IMacroNodeData }) => {
+const CustomNode = ({ data, id }: { data: IMacroNodeData, id: string }) => {
   return (
-    <div key={data.label} style={{ 
+    <div key={id} style={{ 
       border: '1px solid #ccc',
       borderRadius: '8px',
       background: 'white',
@@ -285,13 +291,18 @@ const CustomNode = ({ data }: { data: IMacroNodeData }) => {
             borderBottom: '1px solid #eee',
             marginBottom: '8px'
           }}>
-            <input type="text" placeholder={"parameter name"} style={{
+            <input type="text" placeholder={"parameter name"} defaultValue={data.inputParameter!.id} style={{
                   marginLeft: '8px',
                   padding: '4px',
                   borderRadius: '4px',
                   border: '1px solid #ccc'
-                }}/>
-            <select>
+            }} onChange={(e) => {
+              data.inputParameter!.id = e.target.value;
+            }}/>
+            <select defaultValue={data.inputParameter!.type} onChange={(e) => {
+              const valueType = e.target.value as ValueType;
+              data.inputParameter!.type = valueType;
+            }}>
               <option value={ValueType.INT}>Int</option>
               <option value={ValueType.FLOAT}>Float</option>
               <option value={ValueType.FLOAT_3}>Float3</option>
@@ -314,6 +325,7 @@ const CustomNode = ({ data }: { data: IMacroNodeData }) => {
             position: 'relative',
             marginBottom: '8px'
           }}>
+            <span style={{ marginRight: '8px' }}>value</span>
             <Handle type="source" position={Position.Right} style={{ right: '-8px' }} id={`value--dynamic`} />
           </div>
         </div>
@@ -341,6 +353,8 @@ const CustomNode = ({ data }: { data: IMacroNodeData }) => {
                   padding: '4px',
                   borderRadius: '4px',
                   border: '1px solid #ccc'
+                }} onChange={(e) => {
+                  value.value = e.target.value;
                 }}/>
             </div>
           ))}
@@ -439,6 +453,71 @@ export default function Macros() {
       data: NODE_TYPE_MAP[nodeType]
     }]);
   }
+
+  const getFlowOut = (nodeId: string, nodeIdToNodeIdIndex: Map<string, number>): number | undefined => {
+    const edge = edges.find((edge) => edge.source == nodeId && edge.sourceHandle === 'flow-out');
+    return edge?.target ? nodeIdToNodeIdIndex.get(edge.target) : undefined;
+  }
+
+  const getValueIn = (nodeId: string, valueId: string, valueType: ValueType, nodeIdToNodeIndex: Map<string, number>, nodeIdToInputIndex: Map<string, number>): IValueSocket => {
+    const edge = edges.find((edge) => edge.target == nodeId && edge.targetHandle?.startsWith(valueId));
+    if (!edge) {
+      throw new Error(`Value ${valueId} not found for node ${nodeId}`);
+    }
+
+    if (nodeIdToInputIndex.has(edge.source)) {
+      return {
+        id: valueId,
+        inputIndex: nodeIdToInputIndex.get(edge.source),
+        type: valueType,
+      }
+    } else {
+      return {
+        id: valueId,
+        referencedNodeId: nodeIdToNodeIndex.get(edge.source),
+        referencedValueId: edge.sourceHandle!.split('--')[0],
+        type: valueType,
+      }
+    }
+     
+  }
+
+  const createExecutionJson = () => {
+    const inputNodes = nodes.filter((node) => node.data.type === MacroNodeType.INPUT);
+    const inputNodeIdToIndex = new Map(
+      inputNodes.map((node, index) => [node.id, index])
+    );
+    console.log(inputNodeIdToIndex);
+    const nonInputNodes = nodes.filter((node) => node.data.type !== MacroNodeType.INPUT);
+    const nonInputNodeIdToIndex = new Map(
+      nonInputNodes.map((node, index) => [node.id, index])
+    );
+    console.log(nonInputNodeIdToIndex);
+    const inputsJson = inputNodes.map((node) => ({
+      parameter: node.data.inputParameter!.id,
+      parameterType: node.data.inputParameter!.type,
+    }));
+
+    const actionNodes = nodes.filter((node) => node.data.type === MacroNodeType.ACTION);
+    const actionsJson = actionNodes.map((node) => ({
+      type: node.data.label,
+      inputValues: node.data.inputValues.map((value: IValueSocket) => getValueIn(node.id, value.id, value.type, nonInputNodeIdToIndex, inputNodeIdToIndex)),
+      outFlow: getFlowOut(node.id, nonInputNodeIdToIndex),
+    }));
+    
+    const getterNodes = nodes.filter((node) => node.data.type === MacroNodeType.GETTER);
+    const gettersJson = getterNodes.map((node) => ({
+      type: node.data.label,
+      inputValues: [...node.data.inlineInputValues, ...node.data.inputValues.map((value: IValueSocket) => getValueIn(node.id, value.id, value.type, nonInputNodeIdToIndex, inputNodeIdToIndex))],
+    }));
+
+    const executionJson = {
+      inputs: inputsJson,
+      nodes: [...actionsJson, ...gettersJson],
+      edges: edges,
+    }
+    console.log(executionJson);
+  }
   
     return (
       <div style={{ width: '100vw', height: '95vh', display: 'flex' }}>
@@ -475,14 +554,11 @@ export default function Macros() {
             }}
           >
             {Object.keys(NODE_TYPE_MAP).map((nodeType) => (
-              <option value={nodeType}>{nodeType}</option>
+              <option key={nodeType} value={nodeType}>{nodeType}</option>
             ))}
           </select>
 
-          <Button onClick={() => {
-            console.log(nodes);
-            console.log(edges);
-          }}>
+          <Button onClick={createExecutionJson}>
             Save
           </Button>
         </div>
