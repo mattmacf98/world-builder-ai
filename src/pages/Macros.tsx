@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
+import { Button } from 'react-bootstrap';
 import ReactFlow, { 
-  Node, 
   Controls,
   Background,
   useNodesState,
@@ -16,6 +16,13 @@ enum ValueType {
   INT = 'int',
   FLOAT = 'float',
   FLOAT_3 = 'float3',
+  FLOAT_4 = 'float4',
+}
+
+enum MacroNodeType {
+  ACTION = 'action',
+  GETTER = 'getter',
+  INPUT = 'input',
 }
 
 interface IValueSocket {
@@ -25,13 +32,31 @@ interface IValueSocket {
 
 interface IMacroNodeData {
   label: string;
+  type: MacroNodeType;
   outputValues: IValueSocket[];
   inputValues: IValueSocket[];
   inlineInputValues: IValueSocket[];
 }
 
+const InputNode: IMacroNodeData = {
+  label: 'Input',
+  type: MacroNodeType.INPUT,
+  outputValues: [],
+  inputValues: [],
+  inlineInputValues: [],
+}
+
+const StartNode: IMacroNodeData = {
+  label: 'Start',
+  type: MacroNodeType.ACTION,
+  outputValues: [],
+  inputValues: [],
+  inlineInputValues: [],
+}
+
 const IntNode: IMacroNodeData = {
   label: 'Int',
+  type: MacroNodeType.GETTER,
   outputValues: [{ id: 'value', type: ValueType.INT }],
   inputValues: [],
   inlineInputValues: [{id: 'value', type: ValueType.INT}],
@@ -39,24 +64,178 @@ const IntNode: IMacroNodeData = {
 
 const Float3Node: IMacroNodeData = {
   label: 'Float3',
+  type: MacroNodeType.GETTER,
   outputValues: [{ id: 'value', type: ValueType.FLOAT_3 }],
   inputValues: [],
   inlineInputValues: [{id: 'x', type: ValueType.FLOAT}, {id: 'y', type: ValueType.FLOAT}, {id: 'z', type: ValueType.FLOAT}],
 }
 
+const DivideFloat3Node: IMacroNodeData = {
+  label: 'DivideFloat3',
+  type: MacroNodeType.GETTER,
+  outputValues: [{ id: 'value', type: ValueType.FLOAT_3 }],
+  inputValues: [{id: 'a', type: ValueType.FLOAT_3}, {id: 'b', type: ValueType.FLOAT_3}],
+  inlineInputValues: [],
+}
+
+const MultiplyFloat3Node: IMacroNodeData = {
+  label: 'MultiplyFloat3',
+  type: MacroNodeType.GETTER,
+  outputValues: [{ id: 'value', type: ValueType.FLOAT_3 }],
+  inputValues: [{id: 'a', type: ValueType.FLOAT_3}, {id: 'b', type: ValueType.FLOAT_3}],
+  inlineInputValues: [],
+}
+
+const Float4Node: IMacroNodeData = {
+  label: 'Float4',
+  type: MacroNodeType.GETTER,
+  outputValues: [{ id: 'value', type: ValueType.FLOAT_4 }],
+  inputValues: [],
+  inlineInputValues: [{id: 'x', type: ValueType.FLOAT}, {id: 'y', type: ValueType.FLOAT}, {id: 'z', type: ValueType.FLOAT}, {id: 'w', type: ValueType.FLOAT}],
+}
+
+const FloatNode: IMacroNodeData = {
+  label: 'Float',
+  type: MacroNodeType.GETTER,
+  outputValues: [{ id: 'value', type: ValueType.FLOAT }],
+  inputValues: [],
+  inlineInputValues: [{id: 'value', type: ValueType.FLOAT}],
+}
+
+const ConstructFloat3Node: IMacroNodeData = {
+  label: 'ConstructFloat3',
+  type: MacroNodeType.GETTER,
+  outputValues: [{ id: 'value', type: ValueType.FLOAT_3 }],
+  inputValues: [{id: 'x', type: ValueType.FLOAT}, {id: 'y', type: ValueType.FLOAT}, {id: 'z', type: ValueType.FLOAT}],
+  inlineInputValues: [],
+}
+
+const DestructFloat3Node: IMacroNodeData = {
+  label: 'DestructFloat3',
+  type: MacroNodeType.GETTER,
+  outputValues: [{id: 'x', type: ValueType.FLOAT}, {id: 'y', type: ValueType.FLOAT}, {id: 'z', type: ValueType.FLOAT}],
+  inputValues: [{ id: 'value', type: ValueType.FLOAT_3 }],
+  inlineInputValues: [],
+}
+
 const AddIntNode: IMacroNodeData = {
   label: 'AddInt',
+  type: MacroNodeType.GETTER,
   outputValues: [{ id: 'value', type: ValueType.INT }],
   inputValues: [{ id: 'a', type: ValueType.INT }, { id: 'b', type: ValueType.INT }],
   inlineInputValues: [],
 }
 
+const SubIntNode: IMacroNodeData = {
+  label: 'SubInt',
+  type: MacroNodeType.GETTER,
+  outputValues: [{ id: 'value', type: ValueType.INT }],
+  inputValues: [{ id: 'a', type: ValueType.INT }, { id: 'b', type: ValueType.INT }],
+  inlineInputValues: [],
+}
+
+const AddFloat3Node: IMacroNodeData = {
+  label: 'AddFloat3',
+  type: MacroNodeType.GETTER,
+  outputValues: [{ id: 'value', type: ValueType.FLOAT_3 }],
+  inputValues: [{ id: 'a', type: ValueType.FLOAT_3 }, { id: 'b', type: ValueType.FLOAT_3 }],
+  inlineInputValues: [],
+}
+
+const SubFloat3Node: IMacroNodeData = {
+  label: 'SubFloat3',
+  type: MacroNodeType.GETTER,
+  outputValues: [{ id: 'value', type: ValueType.FLOAT_3 }],
+  inputValues: [{ id: 'a', type: ValueType.FLOAT_3 }, { id: 'b', type: ValueType.FLOAT_3 }],
+  inlineInputValues: [],
+}
+
+const GetPositionNode: IMacroNodeData = {
+  label: 'GetPosition',
+  type: MacroNodeType.GETTER,
+  outputValues: [{ id: 'value', type: ValueType.FLOAT_3 }],
+  inputValues: [{id: 'objectIndex', type: ValueType.INT}],
+  inlineInputValues: [],
+}
+
+const SetPositionNode: IMacroNodeData = {
+  label: 'SetPosition',
+  type: MacroNodeType.ACTION,
+  outputValues: [],
+  inputValues: [{id: 'objectIndex', type: ValueType.INT}, {id: 'position', type: ValueType.FLOAT_3}],
+  inlineInputValues: [],
+}
+
+const GetRotationNode: IMacroNodeData = {
+  label: 'GetRotation',
+  type: MacroNodeType.GETTER,
+  outputValues: [{ id: 'value', type: ValueType.FLOAT_4 }],
+  inputValues: [{id: 'objectIndex', type: ValueType.INT}],
+  inlineInputValues: [],
+}
+
+const SetRotationNode: IMacroNodeData = {
+  label: 'SetRotation',
+  type: MacroNodeType.ACTION,
+  outputValues: [],
+  inputValues: [{id: 'objectIndex', type: ValueType.INT}, {id: 'rotation', type: ValueType.FLOAT_4}],
+  inlineInputValues: [],
+}
+
+const GetScaleNode: IMacroNodeData = {
+  label: 'GetScale',
+  type: MacroNodeType.GETTER,
+  outputValues: [{ id: 'value', type: ValueType.FLOAT_3 }],
+  inputValues: [{id: 'objectIndex', type: ValueType.INT}],
+  inlineInputValues: [],
+}
+
+const SetScaleNode: IMacroNodeData = {
+  label: 'SetScale',
+  type: MacroNodeType.ACTION,
+  outputValues: [],
+  inputValues: [{id: 'objectIndex', type: ValueType.INT}, {id: 'scale', type: ValueType.FLOAT_3}],
+  inlineInputValues: [],
+}
+
+const GetBoundingBoxNode: IMacroNodeData = {
+  label: 'GetBoundingBox',
+  type: MacroNodeType.GETTER,
+  outputValues: [{ id: 'max', type: ValueType.FLOAT_3 }, { id: 'min', type: ValueType.FLOAT_3 }],
+  inputValues: [{id: 'objectIndex', type: ValueType.INT}],
+  inlineInputValues: [],
+}
+
 const NODE_TYPE_MAP: Record<string, IMacroNodeData> = {
+  'Start': StartNode,
   'Int': IntNode,
+  'Float': FloatNode,
   'Float3': Float3Node,
+  'Float4': Float4Node,
   'AddInt': AddIntNode,
+  'SubInt': SubIntNode,
+  'AddFloat3': AddFloat3Node,
+  'SubFloat3': SubFloat3Node,
+  'GetPosition': GetPositionNode,
+  'ConstructFloat3': ConstructFloat3Node,
+  'DestructFloat3': DestructFloat3Node,
+  'GetBoundingBox': GetBoundingBoxNode,
+  'SetPosition': SetPositionNode,
+  'SetRotation': SetRotationNode,
+  'SetScale': SetScaleNode,
+  'GetRotation': GetRotationNode,
+  'GetScale': GetScaleNode,
+  'DivideFloat3': DivideFloat3Node,
+  'MultiplyFloat3': MultiplyFloat3Node,
+  'Input': InputNode,
 };
 
+
+const MacroNodeTypeToColor: Record<MacroNodeType, string> = {
+  [MacroNodeType.ACTION]: '#f2a90a',
+  [MacroNodeType.GETTER]: '#2196f3',
+  [MacroNodeType.INPUT]: '#4CAF50',
+}
 
 const CustomNode = ({ data }: { data: IMacroNodeData }) => {
   return (
@@ -67,7 +246,7 @@ const CustomNode = ({ data }: { data: IMacroNodeData }) => {
       minWidth: '150px',
     }}>
       <div style={{
-        background: '#2196f3',
+        background: MacroNodeTypeToColor[data.type],
         color: 'white',
         padding: '8px',
         borderTopLeftRadius: '7px',
@@ -77,7 +256,68 @@ const CustomNode = ({ data }: { data: IMacroNodeData }) => {
       }}>
         {data.label}
       </div>
-      
+
+      {data.type === MacroNodeType.ACTION && (
+         <div style={{ padding: '8px' }}>
+          <div style={{ 
+            fontSize: '0.8em', 
+            color: '#666',
+            borderBottom: '1px solid #eee',
+            marginBottom: '8px',
+            position: 'relative',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            {data.label !== 'Start' && <Handle type="target" position={Position.Left} style={{ left: '-8px' }} id="flow-in" />}
+            Flow
+            <Handle type="source" position={Position.Right} style={{ right: '-8px' }} id="flow-out" />
+          </div>
+        </div>
+      )}
+
+      {data.type === MacroNodeType.INPUT && (
+        <div style={{ padding: '8px' }}>
+          <div style={{ 
+            fontSize: '0.8em', 
+            color: '#666',
+            borderBottom: '1px solid #eee',
+            marginBottom: '8px'
+          }}>
+            <input type="text" placeholder={"parameter name"} style={{
+                  marginLeft: '8px',
+                  padding: '4px',
+                  borderRadius: '4px',
+                  border: '1px solid #ccc'
+                }}/>
+            <select>
+              <option value={ValueType.INT}>Int</option>
+              <option value={ValueType.FLOAT}>Float</option>
+              <option value={ValueType.FLOAT_3}>Float3</option>
+              <option value={ValueType.FLOAT_4}>Float4</option>
+            </select>
+          </div>
+
+          <div style={{ 
+            fontSize: '0.8em', 
+            color: '#666',
+            borderBottom: '1px solid #eee',
+            marginBottom: '8px'
+          }}>
+            Outputs
+          </div>
+          <div key={"value"} style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'flex-end',
+            position: 'relative',
+            marginBottom: '8px'
+          }}>
+            <Handle type="source" position={Position.Right} style={{ right: '-8px' }} id={`value--dynamic`} />
+          </div>
+        </div>
+      )}
+
       {(data.inputValues.length > 0 || data.inlineInputValues.length > 0) && (
         <div style={{ padding: '8px' }}>
           <div style={{ 
@@ -149,25 +389,8 @@ const nodeTypes = {
   custom: CustomNode,
 };
 
-interface IMacroNode extends Node<IMacroNodeData> {}
-
-const initialNodes: IMacroNode[] = [
-  {
-    id: '1',
-    type: 'custom',
-    position: { x: 100, y: 100 },
-    data: IntNode
-  },
-  {
-    id: '2',
-    type: 'custom',
-    position: { x: 300, y: 200 },
-    data: AddIntNode
-  },
-];
-
 export default function Macros() {
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+  const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const isValidConnection = (connection: Connection): boolean => {
     const sourceSocket = connection.sourceHandle;
@@ -175,7 +398,7 @@ export default function Macros() {
     if (!sourceSocket || !targetSocket) return false;
     const sourceSocketData = sourceSocket.split('--');
     const targetSocketData = targetSocket.split('--');
-    return sourceSocketData && targetSocketData && sourceSocketData[1] === targetSocketData[1];
+    return sourceSocketData && targetSocketData && (sourceSocketData[1] === targetSocketData[1] || sourceSocketData[1] === 'dynamic');
   }
 
   const onConnect = useCallback((params: any) => {
@@ -226,11 +449,17 @@ export default function Macros() {
               border: '1px solid #ccc'
             }}
           >
-            <option value="">Add a node...</option>
-            <option value="Int">Int</option>
-            <option value="Float3">Float3</option>
-            <option value="AddInt">AddInt</option>
+            {Object.keys(NODE_TYPE_MAP).map((nodeType) => (
+              <option value={nodeType}>{nodeType}</option>
+            ))}
           </select>
+
+          <Button onClick={() => {
+            console.log(nodes);
+            console.log(edges);
+          }}>
+            Save
+          </Button>
         </div>
     </div>
     );
