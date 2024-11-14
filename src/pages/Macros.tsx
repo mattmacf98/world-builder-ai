@@ -487,36 +487,40 @@ export default function Macros() {
     const inputNodeIdToIndex = new Map(
       inputNodes.map((node, index) => [node.id, index])
     );
-    console.log(inputNodeIdToIndex);
+
     const nonInputNodes = nodes.filter((node) => node.data.type !== MacroNodeType.INPUT);
     const nonInputNodeIdToIndex = new Map(
       nonInputNodes.map((node, index) => [node.id, index])
     );
-    console.log(nonInputNodeIdToIndex);
+
     const inputsJson = inputNodes.map((node) => ({
       parameter: node.data.inputParameter!.id,
       parameterType: node.data.inputParameter!.type,
     }));
 
-    const actionNodes = nodes.filter((node) => node.data.type === MacroNodeType.ACTION);
-    const actionsJson = actionNodes.map((node) => ({
-      type: node.data.label,
-      inputValues: node.data.inputValues.map((value: IValueSocket) => getValueIn(node.id, value.id, value.type, nonInputNodeIdToIndex, inputNodeIdToIndex)),
-      outFlow: getFlowOut(node.id, nonInputNodeIdToIndex),
-    }));
-    
-    const getterNodes = nodes.filter((node) => node.data.type === MacroNodeType.GETTER);
-    const gettersJson = getterNodes.map((node) => ({
-      type: node.data.label,
-      inputValues: [...node.data.inlineInputValues, ...node.data.inputValues.map((value: IValueSocket) => getValueIn(node.id, value.id, value.type, nonInputNodeIdToIndex, inputNodeIdToIndex))],
-    }));
+    const engineNodes = nonInputNodes.map((node) => {
+      if (node.data.type === MacroNodeType.ACTION) {
+        return {
+          type: node.data.label,
+          inputValues: node.data.inputValues.map((value: IValueSocket) => getValueIn(node.id, value.id, value.type, nonInputNodeIdToIndex, inputNodeIdToIndex)),
+          outFlow: getFlowOut(node.id, nonInputNodeIdToIndex),
+        }
+      } else {
+        return {
+          type: node.data.label,
+          inputValues: [...node.data.inlineInputValues, ...node.data.inputValues.map((value: IValueSocket) => getValueIn(node.id, value.id, value.type, nonInputNodeIdToIndex, inputNodeIdToIndex))],
+        }
+      }
+    });
 
     const executionJson = {
       inputs: inputsJson,
-      nodes: [...actionsJson, ...gettersJson],
+      nodes: engineNodes,
       edges: edges,
     }
-    console.log(executionJson);
+
+    const engine = MacroNodeEngine.build(executionJson.nodes, executionJson.inputs, {'index': 4}, new LogDecorator());
+    engine.execute();
   }
   
     return (
@@ -564,4 +568,177 @@ export default function Macros() {
         </div>
     </div>
     );
+  }
+
+
+  interface IEngineInput {
+    parameter: string;
+    parameterType: ValueType;
+    value?: any;
+  }
+
+  interface IEngineNode {
+    type: string;
+    inputValues: IValueSocket[];
+    outFlow?: number;
+  }
+
+  abstract class MacroNodeEngineNode {
+    private _node: IEngineNode;
+    private _engine: MacroNodeEngine;
+    protected _decorator: IEngineActionDecorator;
+    protected _outputValues: Record<string, any>;
+    protected _inputValues: Record<string, any>;
+
+    constructor(node: IEngineNode, engine: MacroNodeEngine, decorator: IEngineActionDecorator) {
+      this._node = node;
+      this._engine = engine;
+      this._decorator = decorator;
+      this._outputValues = {};
+      this._inputValues = {};
+    }
+    
+    public getOutputValue(id: string) {
+      return this._outputValues[id];
+    }
+
+    public get type() {
+      return this._node.type;
+    }
+
+    public execute() {
+      this._inputValues = this._engine.evaluateInputValueSockets(this._node.inputValues);
+ 
+      this._execute();
+
+      if (this._node.outFlow !== undefined) {
+        this._engine.triggerNextFlow(this._node.outFlow);
+      }
+    }
+
+    protected abstract _execute(): void;
+  }
+
+  class StartNodeEngine extends MacroNodeEngineNode {
+    protected _execute(): void {
+      // do nothing
+    }
+  }
+
+  class Float3NodeEngine extends MacroNodeEngineNode {
+    protected _execute(): void {
+      this._outputValues.value = [this._inputValues.x, this._inputValues.y, this._inputValues.z];
+    }
+  }
+
+  class SetPositionNodeEngine extends MacroNodeEngineNode {
+    protected _execute(): void {
+      this._decorator.setObjectPosition(this._inputValues.objectIndex, this._inputValues.position);
+    }
+  }
+
+  const NODE_ENGINE_MAP: Record<string, new (node: IEngineNode, engine: MacroNodeEngine, decorator: IEngineActionDecorator) => MacroNodeEngineNode> = {
+    'Start': StartNodeEngine,
+    'Float3': Float3NodeEngine,
+    'SetPosition': SetPositionNodeEngine,
+  }
+
+  const ACTION_NODE_TYPES = ['SetPosition', 'Start'];
+  const GETTER_NODE_TYPES = ['Float3'];
+
+  class MacroNodeEngine {
+    private _nodes: IEngineNode[];
+    private _inputs: IEngineInput[];
+    private _engineNodes: MacroNodeEngineNode[];
+    private _decorator: IEngineActionDecorator;
+
+    public static build(nodes: IEngineNode[], inputs: IEngineInput[], inputValues: Record<string, any>, decorator: IEngineActionDecorator): MacroNodeEngine {
+
+      for (const input of inputs) {
+        if (inputValues[input.parameter] === undefined) {
+          throw new Error(`Input ${input.parameter} not found`);
+        }
+        input.value = inputValues[input.parameter];
+      }
+
+      return new MacroNodeEngine(nodes, inputs, decorator);
+    }
+
+    public evaluateInputValueSockets(valueSockets: IValueSocket[]): Record<string, any> {
+      const result: Record<string, any> = {};
+      for (const valueSocket of valueSockets) {
+        result[valueSocket.id] = this._evaluateInputValueSocket(valueSocket);
+      }
+      return result;
+    }
+
+    private _evaluateInputValueSocket(valueSocket: IValueSocket): any {
+      //TODO: add caching
+      if (valueSocket.value !== undefined) {
+        return this._parseValue(valueSocket.value, valueSocket.type);
+      } else if (valueSocket.inputIndex !== undefined) {
+        return this._parseValue(this._inputs[valueSocket.inputIndex].value, valueSocket.type);
+      } else if (valueSocket.referencedNodeId !== undefined) {
+        const referencedNode = this._engineNodes[valueSocket.referencedNodeId];
+        if (referencedNode.getOutputValue(valueSocket.referencedValueId!) === undefined) {
+          this._triggerGetterNode(valueSocket.referencedNodeId);
+        }
+        return this._parseValue(referencedNode.getOutputValue(valueSocket.referencedValueId!), valueSocket.type);
+      }
+    }
+
+    private _triggerGetterNode(nodeId: number) {
+      const node = this._engineNodes[nodeId];
+      if (!GETTER_NODE_TYPES.includes(node.type)) {
+        throw new Error(`Node ${nodeId} (${node.type}) is not a getter`);
+      }
+      node.execute();
+    }
+
+    public triggerNextFlow(nodeId: number) {
+      const node = this._engineNodes[nodeId];
+      if (!ACTION_NODE_TYPES.includes(node.type)) {
+        throw new Error(`Node ${nodeId} (${node.type}) is not an action`);
+      }
+      node.execute();
+    }
+
+    private _parseValue(value: any, type: ValueType): any {
+      switch (type) {
+        case ValueType.INT:
+          return parseInt(value);
+        case ValueType.FLOAT:
+          return parseFloat(value);
+        case ValueType.FLOAT_3:
+          return value;
+      }
+    }
+
+    public execute() {
+      const startNode = this._nodes.find((node) => node.type === 'Start');
+      if (!startNode) {
+        throw new Error('Start node not found');
+      }
+
+      this._engineNodes = this._nodes.map((node) => new NODE_ENGINE_MAP[node.type](node, this, this._decorator));
+      const startEngineNode = this._engineNodes.find((node) => node.type === 'Start');
+      startEngineNode?.execute();
+    }
+
+    private constructor(nodes: IEngineNode[], inputs: IEngineInput[], decorator: IEngineActionDecorator) {
+      this._nodes = nodes;
+      this._inputs = inputs;
+      this._engineNodes = [];
+      this._decorator = decorator;
+    }
+  }
+
+  interface IEngineActionDecorator {
+    setObjectPosition(objectIndex: number, position: [number, number, number]): void;
+  }
+
+  class LogDecorator implements IEngineActionDecorator {
+    setObjectPosition(objectIndex: number, position: [number, number, number]): void {
+      console.log(`Set object ${objectIndex} position to ${position}`);
+    }
   }
