@@ -1,10 +1,12 @@
 # TODO
 - react flow for macro creation
+    - react flow cycle detection
     - synthesize node flow into macro and execution json
-    - save one macor and execute from world builder
+    - execute the json with an engine
 - allow invoking macros from world builder
 - AI calls macros
 - save macros in convex
 - refactor code
 - fix up UI
 - switch to transformers js for speech to text
+- ai for macro creation

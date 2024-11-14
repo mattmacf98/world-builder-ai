@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { Button } from 'react-bootstrap';
 import ReactFlow, { 
   Controls,
@@ -9,6 +9,7 @@ import ReactFlow, {
   Handle,
   Position,
   Connection,
+  Edge,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
@@ -239,7 +240,7 @@ const MacroNodeTypeToColor: Record<MacroNodeType, string> = {
 
 const CustomNode = ({ data }: { data: IMacroNodeData }) => {
   return (
-    <div style={{ 
+    <div key={data.label} style={{ 
       border: '1px solid #ccc',
       borderRadius: '8px',
       background: 'white',
@@ -390,6 +391,8 @@ const nodeTypes = {
 };
 
 export default function Macros() {
+  const connectedInSockets = useRef(new Set<string>());
+  const connectedFlowOutSockets = useRef(new Set<string>());
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const isValidConnection = (connection: Connection): boolean => {
@@ -402,8 +405,29 @@ export default function Macros() {
   }
 
   const onConnect = useCallback((params: any) => {
+    const toConnectTarget = `${params.target}--${params.targetHandle}`;
+    if (connectedInSockets.current.has(toConnectTarget)) {
+      return;
+    }
+    if (params.sourceHandle === 'flow-out') {
+      const flowOutSourceToConnect = `${params.source}--${params.sourceHandle}`;
+      if (connectedFlowOutSockets.current.has(flowOutSourceToConnect)) {
+        return;
+      }
+      connectedFlowOutSockets.current.add(flowOutSourceToConnect);
+    }
+    connectedInSockets.current.add(toConnectTarget);
     setEdges((eds) => addEdge(params, eds));
   }, [setEdges]);
+
+  const onEdgesDelete = (edgesToDelete: Edge[]) => {
+    for (const edge of edgesToDelete) {
+      if (edge.sourceHandle === 'flow-out') {
+        connectedFlowOutSockets.current.delete(`${edge.source}--${edge.sourceHandle}`);
+      }
+      connectedInSockets.current.delete(`${edge.target}--${edge.targetHandle}`);
+    }
+  }
 
   const handleNodeSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const nodeType = e.target.value;
@@ -425,6 +449,7 @@ export default function Macros() {
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
+            onEdgesDelete={onEdgesDelete}
             isValidConnection={isValidConnection}
             nodeTypes={nodeTypes}
           >
