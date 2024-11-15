@@ -17,7 +17,7 @@ export const useAI = () => {
 
   const executeAIChat = async (userPrompt: string, prompt: string, onResult: (result: string) => void) => {
     setAiLoading(true);
-    const result = await aiSession.current?.prompt(prompt + "\n\nUser: " + userPrompt);
+    const result = await aiSession.current?.prompt(prompt + "\n\nUser: " + userPrompt + "\n\nAI:");
     if (result) {
       onResult(result);
     }

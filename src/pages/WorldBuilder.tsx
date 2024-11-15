@@ -6,9 +6,9 @@ import {
     KeyboardInfo,
   } from '@babylonjs/core';
   import "@babylonjs/loaders/glTF";
-  import { useEffect, useRef, useState } from 'react';
+  import { MutableRefObject, useEffect, useRef, useState } from 'react';
   import { useSearchParams } from 'react-router-dom';
-  import { Container, Row, Col, Form, Spinner, Button } from 'react-bootstrap';
+  import { Container, Row, Col, Form, Spinner, Button, Modal } from 'react-bootstrap';
   import { IReferencedAsset } from '../glTFx/IGLTFX';
   import { GLTFXLoader } from '../glTFx/glTFXLoader';
   import { WRLD_parametrized_asset } from '../glTFx/extensions/WRLD_parametrized_asset';
@@ -19,6 +19,62 @@ import {
   import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
   import { fileService } from '../fileService';
 import { LightType, ObjectType, WorldBuilder } from '../WorldBuilder';
+import { MacroNodeEngine } from '../macroEngine/Engine';
+import { BabylonDecorator } from '../macroEngine/Decorator';
+
+const macroJson = {
+  "inputs":[
+     {
+        "parameter":"index",
+        "parameterType":"int"
+     }
+  ],
+  "nodes":[
+     {
+        "type":"SetPosition",
+        "inputValues":[
+           {
+              "id":"objectIndex",
+              "inputIndex":0,
+              "type":"int"
+           },
+           {
+              "id":"position",
+              "referencedNodeId":2,
+              "referencedValueId":"value",
+              "type":"float3"
+           }
+        ]
+     },
+     {
+        "type":"Start",
+        "inputValues":[
+           
+        ],
+        "outFlow":0
+     },
+     {
+        "type":"Float3",
+        "inputValues":[
+           {
+              "id":"x",
+              "type":"float",
+              "value":"0"
+           },
+           {
+              "id":"y",
+              "type":"float",
+              "value":"0"
+           },
+           {
+              "id":"z",
+              "type":"float",
+              "value":"0"
+           }
+        ]
+     }
+  ]
+};
   
   GLTFXLoader.RegisterExtension("WRLD_parametrized_asset", (loader) => {
     return new WRLD_parametrized_asset(loader);
@@ -64,7 +120,7 @@ import { LightType, ObjectType, WorldBuilder } from '../WorldBuilder';
     const [_forceUpdate, setForceUpdate] = useState(0);
     const [searchParams] = useSearchParams();
     const worldId = searchParams.get('worldId');
-  
+    const [macroScreen, setMacroScreen] = useState(false);
     const { 
       aiLoading, 
       aiChatText, 
@@ -247,6 +303,10 @@ import { LightType, ObjectType, WorldBuilder } from '../WorldBuilder';
         triggerRerender();
       }
     };
+
+    const showMacroScreen = () => {
+      setMacroScreen(true);
+    }
   
     return (
       <Container fluid className="p-0" style={{ height: '95vh' }}>
@@ -371,9 +431,50 @@ import { LightType, ObjectType, WorldBuilder } from '../WorldBuilder';
               document.getElementById('gltfx-file-input')?.click();
             }}>Load GLTFX</Button>
             <Button onClick={handleUploadGLTFX}>Upload GLTFX</Button>
+
+
+            <Button onClick={showMacroScreen}>Macro</Button>
           </Col>
         </Row>
+
+        <Modal show={macroScreen} onHide={() => setMacroScreen(false)}>
+          <Modal.Header closeButton>
+            <Modal.Title>Macro</Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            <MacroScreen macroJson={macroJson} worldBuilder={worldBuilder} />
+          </Modal.Body>
+        </Modal>
       </Container>
+    )
+  }
+
+  const MacroScreen = ({macroJson, worldBuilder}: {macroJson: any, worldBuilder: MutableRefObject<WorldBuilder | null>}) => {
+    const inputs = macroJson.inputs;
+    const [inputValues, setInputValues] = useState<Record<string, any>>({});
+
+    return (
+      <>
+        <Form.Group className="mb-3">
+          {inputs.map((input: any) => {
+            return (
+              <div key={input.parameter}>
+                <Form.Label>{input.parameter} ({input.parameterType})</Form.Label>
+                <Form.Control
+                  type="text"
+                  value={inputValues[input.parameter] ?? ""}
+                  onChange={(e) => setInputValues({...inputValues, [input.parameter]: e.target.value})}
+                />
+              </div>
+            )
+          })}
+        </Form.Group>
+
+        <Button onClick={() => {
+          const macroEngine = MacroNodeEngine.build(macroJson.nodes, macroJson.inputs, inputValues, new BabylonDecorator(worldBuilder.current!));
+          macroEngine.execute();
+        }}>Run</Button>
+      </>
     )
   }
   
