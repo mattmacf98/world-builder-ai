@@ -442,35 +442,61 @@ const macroJson = {
             <Modal.Title>Macro</Modal.Title>
           </Modal.Header>
           <Modal.Body>
-            <MacroScreen macroJson={macroJson} worldBuilder={worldBuilder} />
+            <MacroScreen worldBuilder={worldBuilder} />
           </Modal.Body>
         </Modal>
       </Container>
     )
   }
 
-  const MacroScreen = ({macroJson, worldBuilder}: {macroJson: any, worldBuilder: MutableRefObject<WorldBuilder | null>}) => {
-    const inputs = macroJson.inputs;
+  const MacroScreen = ({worldBuilder}: {worldBuilder: MutableRefObject<WorldBuilder | null>}) => {
     const [inputValues, setInputValues] = useState<Record<string, any>>({});
+    const [macroName, setMacroName] = useState<string | null>("");
+    const [macroJson, setMacroJson] = useState<any>(null);
+
+    const macros = useQuery(api.macro.getMacros);
+    const selectedMacro = useQuery(api.macro.getMacro, macroName !== "" ? { id: macroName as Id<'macros'> } : "skip");
+
+    const getMacroJson = async () => {
+      const macro = await fetch(selectedMacro!.macroUrl!);
+      const macroText = await macro.text();
+      setMacroJson(JSON.parse(macroText));
+    }
+
+    useEffect(() => {
+      if (selectedMacro) {
+        getMacroJson();
+      }
+    }, [selectedMacro]);
 
     return (
       <>
         <Form.Group className="mb-3">
-          {inputs.map((input: any) => {
+          <Form.Label>Macro Name</Form.Label>
+          <Form.Select onChange={(e) => {
+            setMacroJson(null);
+            setMacroName(e.target.value);
+          }}>
+            <option value={""}>Select</option>
+            {macros?.map((macro: any) => (
+              <option key={macro._id} value={macro._id}>{macro.name}</option>
+            ))}
+          </Form.Select>
+          {macroJson && macroJson.inputs.map((input: any) => {
             return (
-              <div key={input.parameter}>
-                <Form.Label>{input.parameter} ({input.parameterType})</Form.Label>
-                <Form.Control
-                  type="text"
-                  value={inputValues[input.parameter] ?? ""}
-                  onChange={(e) => setInputValues({...inputValues, [input.parameter]: e.target.value})}
-                />
-              </div>
-            )
-          })}
+                <div key={input.parameter}>
+                  <Form.Label>{input.parameter} ({input.parameterType})</Form.Label>
+                  <Form.Control
+                    type="text"
+                    value={inputValues[input.parameter] ?? ""}
+                    onChange={(e) => setInputValues({...inputValues, [input.parameter]: e.target.value})}
+                  />
+                </div>
+              )
+            })}
         </Form.Group>
 
-        <Button onClick={() => {
+        <Button disabled={!macroJson} onClick={() => {
           const macroEngine = MacroNodeEngine.build(macroJson.nodes, macroJson.inputs, inputValues, new BabylonDecorator(worldBuilder.current!));
           macroEngine.execute();
         }}>Run</Button>
