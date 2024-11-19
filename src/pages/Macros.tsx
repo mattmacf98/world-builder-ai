@@ -1,5 +1,5 @@
-import { useCallback, useRef } from 'react';
-import { Button } from 'react-bootstrap';
+import { useCallback, useRef, useState } from 'react';
+import { Button, Modal, Form } from 'react-bootstrap';
 import ReactFlow, { 
   Controls,
   Background,
@@ -12,8 +12,8 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import { MacroNodeType, ValueType, NODE_TYPE_MAP, IValueSocket } from '../macroEngine/MacroNodes';
 import { CustomNode } from '../macroEngine/CustomNode';
-import { MacroNodeEngine } from '../macroEngine/Engine';
-import { LogDecorator } from '../macroEngine/Decorator';
+import { api } from '../../convex/_generated/api';
+import { useMutation } from 'convex/react';
 
 const nodeTypes = {
   custom: CustomNode,
@@ -24,6 +24,13 @@ export default function Macros() {
   const connectedFlowOutSockets = useRef(new Set<string>());
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [showMacroUploadModal, setShowMacroUploadModal] = useState(false);
+  const [macroName, setMacroName] = useState('');
+  const [activationPhrases, setActivationPhrases] = useState('');
+
+  const createMacro = useMutation(api.macro.createMacro);
+  const generateUploadUrl = useMutation(api.world.generateUploadUrl);
+
   const isValidConnection = (connection: Connection): boolean => {
     const sourceSocket = connection.sourceHandle;
     const targetSocket = connection.targetHandle;
@@ -133,10 +140,27 @@ export default function Macros() {
       nodes: engineNodes,
     }
 
-    console.log(JSON.stringify(executionJson, null, 2));
+    return JSON.stringify(executionJson, null, 2);
+  }
 
-    // const engine = MacroNodeEngine.build(executionJson.nodes, executionJson.inputs, {'index': 4}, new LogDecorator());
-    // engine.execute();
+  const handleSaveMacro = async () => {
+    const executionJson = createExecutionJson();
+
+    const uploadUrl = await generateUploadUrl();
+
+    const blob = new Blob([executionJson], { type: 'application/json' });
+      const result = await fetch(uploadUrl, {
+        method: "POST",
+        headers: { "Content-Type": blob.type },
+        body: blob,
+    });
+
+    const response = await result.json();
+    const macroStorageId = response.storageId;
+
+    await createMacro({ name: macroName, macroStorageId, activationPhrases: activationPhrases.split('\n') });
+
+    setShowMacroUploadModal(false);
   }
   
     return (
@@ -178,10 +202,44 @@ export default function Macros() {
             ))}
           </select>
 
-          <Button onClick={createExecutionJson}>
+          <Button onClick={() => setShowMacroUploadModal(true)}>
             Save
           </Button>
         </div>
-    </div>
+
+        <Modal show={showMacroUploadModal} onHide={() => setShowMacroUploadModal(false)}>
+          <Modal.Header closeButton>
+            <Modal.Title>Save Macro</Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            <Form>
+              <Form.Group className="mb-3">
+                <Form.Label>Macro Name</Form.Label>
+                <Form.Control
+                  type="text"
+                  placeholder="Enter macro name"
+                  value={macroName}
+                  onChange={(e) => setMacroName(e.target.value)}
+                />
+              </Form.Group>
+              <Form.Group className="mb-3">
+                <Form.Label>Activation Phrases (one per line)</Form.Label>
+                <Form.Control
+                  as="textarea"
+                  rows={3}
+                  value={activationPhrases}
+                  onChange={(e) => setActivationPhrases(e.target.value)}
+                  placeholder="Enter activation phrases"
+                />
+              </Form.Group>
+            </Form>
+          </Modal.Body>
+          <Modal.Footer>
+            <Button variant="primary" onClick={handleSaveMacro} disabled={macroName.length === 0 || activationPhrases.length === 0}>
+              Save Macro
+            </Button>
+          </Modal.Footer>
+        </Modal>
+      </div>
     );
   }

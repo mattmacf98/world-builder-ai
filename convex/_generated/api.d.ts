@@ -13,6 +13,7 @@ import type {
   FilterApi,
   FunctionReference,
 } from "convex/server";
+import type * as macro from "../macro.js";
 import type * as world from "../world.js";
 
 /**
@@ -24,6 +25,7 @@ import type * as world from "../world.js";
  * ```
  */
 declare const fullApi: ApiFromModules<{
+  macro: typeof macro;
   world: typeof world;
 }>;
 export declare const api: FilterApi<

@@ -16,4 +16,11 @@ export default defineSchema({
     createdAt: v.number(),
     name: v.string(),
   }),
+  macros: defineTable({
+    name: v.string(),
+    macroStorageId: v.string(),
+    macroUrl: v.optional(v.string()),
+    activationPhrases: v.array(v.string()),
+    createdAt: v.number(),
+  }),
 });
