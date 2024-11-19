@@ -21,6 +21,7 @@ export default defineSchema({
     macroStorageId: v.string(),
     macroUrl: v.optional(v.string()),
     activationPhrases: v.array(v.string()),
+    actions: v.array(v.string()),
     createdAt: v.number(),
   }),
 });

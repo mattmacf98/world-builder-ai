@@ -1,12 +1,16 @@
 import { Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
 
-export const createMacro = mutation(async (ctx, { name, macroStorageId, activationPhrases }: { name: string, macroStorageId: string, activationPhrases: string[] }) => {
-    return await ctx.db.insert("macros", { name, macroStorageId, activationPhrases, createdAt: Date.now() });
+export const createMacro = mutation(async (ctx, { name, macroStorageId, activationPhrases, actions }: { name: string, macroStorageId: string, activationPhrases: string[], actions: string[] }) => {
+    return await ctx.db.insert("macros", { name, macroStorageId, activationPhrases, actions, createdAt: Date.now() });
 });
 
 export const getMacros = query(async (ctx) => {
-    return await ctx.db.query("macros").collect();
+    const macros = await ctx.db.query("macros").collect();  
+    for (const macro of macros) {
+        macro.macroUrl = (await ctx.storage.getUrl(macro.macroStorageId))!;
+    }
+    return macros;
 });
 
 export const getMacro = query(async (ctx, { id }: { id: Id<"macros"> }) => {

@@ -158,7 +158,7 @@ export default function Macros() {
     const response = await result.json();
     const macroStorageId = response.storageId;
 
-    await createMacro({ name: macroName, macroStorageId, activationPhrases: activationPhrases.split('\n') });
+    await createMacro({ name: macroName, macroStorageId, activationPhrases: activationPhrases.split('\n'), actions: [] });
 
     setShowMacroUploadModal(false);
   }

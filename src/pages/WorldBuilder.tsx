@@ -21,95 +21,50 @@ import {
 import { LightType, ObjectType, WorldBuilder } from '../WorldBuilder';
 import { MacroNodeEngine } from '../macroEngine/Engine';
 import { BabylonDecorator } from '../macroEngine/Decorator';
-
-const macroJson = {
-  "inputs":[
-     {
-        "parameter":"index",
-        "parameterType":"int"
-     }
-  ],
-  "nodes":[
-     {
-        "type":"SetPosition",
-        "inputValues":[
-           {
-              "id":"objectIndex",
-              "inputIndex":0,
-              "type":"int"
-           },
-           {
-              "id":"position",
-              "referencedNodeId":2,
-              "referencedValueId":"value",
-              "type":"float3"
-           }
-        ]
-     },
-     {
-        "type":"Start",
-        "inputValues":[
-           
-        ],
-        "outFlow":0
-     },
-     {
-        "type":"Float3",
-        "inputValues":[
-           {
-              "id":"x",
-              "type":"float",
-              "value":"0"
-           },
-           {
-              "id":"y",
-              "type":"float",
-              "value":"0"
-           },
-           {
-              "id":"z",
-              "type":"float",
-              "value":"0"
-           }
-        ]
-     }
-  ]
-};
   
   GLTFXLoader.RegisterExtension("WRLD_parametrized_asset", (loader) => {
     return new WRLD_parametrized_asset(loader);
   });
+
+  interface IPrompt {
+    user: string;
+    ai: string;
+  }
+  const constructMacroPrompt = (userPrompts: IPrompt[]) => {
+    let prompt = `
+      you have the ability to create json objects correpsonding to user requets but always start with the phrase alrighty here you go
+
+      here are some examples
+      User: select the first object
+      AI: alrighty here you go {"actions":[{"select":{"index": "0"}}]}
+      
+      User: move the selected object 1 unit to the right
+      AI: alrighty here you go {"actions":[{"translateX":{"amount": "1"}}]}
+      
+      User: move the selected object 20 units up
+      AI: alrighty here you go {"actions":[{"translateY":{"amount": "20"}}]}
+      
+      User: move the selected object 1 unit forward
+      AI: alrighty here you go {"actions":[{"translateZ":{"amount": "1"}}]}
+      
+      User: rotate the selected object 90 degrees on the x axis
+      AI: alrighty here you go {"actions":[{"rotateX":{"amount": "90"}}]}
+      
+      User: scale the selected object to be 2 times smaller in the x direction
+      AI: alrighty here you go {"actions":[{"scaleX":{"amount": "0.5"}}]}
+    
+      User: delete the selected object
+      AI: alrighty here you go {"actions":[{"delete": {}}]}
   
-  const prompt = `
-  you have the ability to create json objects correpsonding to user requets but always start with the phrase alrighty here you go
-  
-  here are some examples
-  User: select the first object
-  AI: alrighty here you go {"actions":[{"select":{"index": "0"}}]}
-  
-  User: move the selected object 1 unit to the right
-  AI: alrighty here you go {"actions":[{"translateX":{"amount": "1"}}]}
-  
-  User: move the selected object 20 units up
-  AI: alrighty here you go {"actions":[{"translateY":{"amount": "20"}}]}
-  
-  User: move the selected object 1 unit forward
-  AI: alrighty here you go {"actions":[{"translateZ":{"amount": "1"}}]}
-  
-  User: rotate the selected object 90 degrees on the x axis
-  AI: alrighty here you go {"actions":[{"rotateX":{"amount": "90"}}]}
-  
-  User: scale the selected object to be 2 times smaller in the x direction
-  AI: alrighty here you go {"actions":[{"scaleX":{"amount": "0.5"}}]}
-  
-  User: move the object to the origin
-  AI: alrighty here you go {"actions":[{"setTranslateX":{"amount": "0"}}, {"setTranslateY":{"amount": "0"}}, {"setTranslateZ":{"amount": "0"}}]}
-  
-  User: delete the selected object
-  AI: alrighty here you go {"actions":[{"delete": {}}]}
-  
-  Now respond to the following user request
-  `
+    `
+    for (const userPrompt of userPrompts) {
+      prompt += `\nUser: ${userPrompt.user}`;
+      prompt += `\nAI: alrighty here you go ${userPrompt.ai}\n\n`;
+    }
+
+    prompt += `\nNow respond to the following user request\n`;
+    return prompt;
+  }
   
   const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
   
@@ -121,6 +76,18 @@ const macroJson = {
     const [searchParams] = useSearchParams();
     const worldId = searchParams.get('worldId');
     const [macroScreen, setMacroScreen] = useState(false);
+    const macros = useQuery(api.macro.getMacros);
+
+    const userPrompts: IPrompt[] = [];
+    if (macros) {
+      for (const macro of macros) {
+        for (let i = 0; i < macro.activationPhrases.length; i++) {
+          userPrompts.push({ user: macro.activationPhrases[i], ai: `{"actions":[{"${macro.name}":${macro.actions[i]}}]}` });
+        }
+      }
+    }
+    const macroPrompt = constructMacroPrompt(userPrompts);
+
     const { 
       aiLoading, 
       aiChatText, 
@@ -136,7 +103,7 @@ const macroJson = {
       initialize: initializeSpeech 
     } = useSpeechRecognition((transcript) => {
       setAiChatText(transcript);
-      executeAIChat(transcript, prompt, parseAIResponse);
+      executeAIChat(transcript, macroPrompt, parseAIResponse);
     });
   
     const createWorld = useMutation(api.world.createWorld);
@@ -259,7 +226,35 @@ const macroJson = {
         worldBuilder.current?.scaleZ(action["scaleZ"]["amount"] as number);
       } else if (action["delete"]) {
         worldBuilder.current?.deleteSelectedObject();
+      } else {
+        executeMacro(action);
       }
+    }
+
+    const executeMacro = async (action: any) => {
+      const actionKeys = Object.keys(action);
+      if (actionKeys.length !== 1) { 
+        console.log("expected a single actionkey found", actionKeys);
+      }
+      const name = actionKeys[0];
+      const input = action[name];
+      console.log(name, input);
+      console.log(macros);
+
+      const macro = macros?.find(macro => macro.name === name);
+      if (!macro) {
+        console.log("macro not found", name);
+        return;
+      }
+
+      const response = await fetch(macro.macroUrl!);
+      const macroText = await response.text();
+      const macroJson = JSON.parse(macroText);
+
+      console.log(macroJson);
+      console.log(input);
+      const macroEngine = MacroNodeEngine.build(macroJson.nodes, macroJson.inputs, input, new BabylonDecorator(worldBuilder.current!));
+      macroEngine.execute();
     }
   
     const handleUploadGLTFX = async () => {
@@ -386,7 +381,7 @@ const macroJson = {
                 onKeyDown={async (e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
-                    executeAIChat(aiChatText ?? "", prompt, parseAIResponse);
+                    executeAIChat(aiChatText ?? "", macroPrompt, parseAIResponse);
                   }
                 }}
               />
