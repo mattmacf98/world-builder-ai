@@ -6,7 +6,7 @@ import {
     KeyboardInfo,
   } from '@babylonjs/core';
   import "@babylonjs/loaders/glTF";
-  import { MutableRefObject, useEffect, useRef, useState } from 'react';
+  import { MutableRefObject, useEffect, useRef, useState, useCallback } from 'react';
   import { useSearchParams } from 'react-router-dom';
   import { Container, Row, Col, Form, Spinner, Button, Modal } from 'react-bootstrap';
   import { IReferencedAsset } from '../glTFx/IGLTFX';
@@ -77,6 +77,7 @@ import { BabylonDecorator } from '../macroEngine/Decorator';
     const worldId = searchParams.get('worldId');
     const [macroScreen, setMacroScreen] = useState(false);
     const macros = useQuery(api.macro.getMacros);
+    const aiChatRef = useRef<HTMLTextAreaElement | null>(null);
 
     const userPrompts: IPrompt[] = [];
     if (macros) {
@@ -103,7 +104,18 @@ import { BabylonDecorator } from '../macroEngine/Decorator';
       initialize: initializeSpeech 
     } = useSpeechRecognition((transcript) => {
       setAiChatText(transcript);
-      executeAIChat(transcript, macroPrompt, parseAIResponse);
+      if (aiChatRef.current) {
+        aiChatRef.current.focus();
+        const enterEvent = new KeyboardEvent('keydown', {
+          key: 'Enter',
+          code: 'Enter',
+          keyCode: 13,
+          which: 13,
+          bubbles: true,
+          cancelable: true
+        });
+        aiChatRef.current.dispatchEvent(enterEvent);
+      }
     });
   
     const createWorld = useMutation(api.world.createWorld);
@@ -373,6 +385,7 @@ import { BabylonDecorator } from '../macroEngine/Decorator';
               <Form.Control 
                 as="textarea" 
                 disabled={aiLoading}
+                ref={aiChatRef}
                 value={aiChatText ?? ""}
                 onChange={(e) => setAiChatText(e.target.value)}
                 rows={3} 

@@ -1,5 +1,5 @@
-import { useCallback, useRef, useState } from 'react';
-import { Button, Modal, Form } from 'react-bootstrap';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Button, Modal, Form, ListGroup } from 'react-bootstrap';
 import ReactFlow, { 
   Controls,
   Background,
@@ -24,12 +24,19 @@ export default function Macros() {
   const connectedFlowOutSockets = useRef(new Set<string>());
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [inputs, setInputs] = useState<{id: string, type: string}[]>([]);
   const [showMacroUploadModal, setShowMacroUploadModal] = useState(false);
   const [macroName, setMacroName] = useState('');
-  const [activationPhrases, setActivationPhrases] = useState('');
+  const [activationPhrase, setActivationPhrase] = useState('');
+  const [activationPhrases, setActivationPhrases] = useState<string[]>([]);
+  const [inputValues, setInputValues] = useState<{[key: string]: {[key: string]: string}}>({});
 
   const createMacro = useMutation(api.macro.createMacro);
   const generateUploadUrl = useMutation(api.world.generateUploadUrl);
+
+  useEffect(() => {
+    setInputs(nodes.filter((node) => node.data.type === MacroNodeType.INPUT).map((node) => node.data.inputParameter!));
+  }, [nodes]);
 
   const isValidConnection = (connection: Connection): boolean => {
     const sourceSocket = connection.sourceHandle;
@@ -72,7 +79,7 @@ export default function Macros() {
       id: `${nds.length + 1}`,
       type: 'custom',
       position: { x: 0, y: 0 },
-      data: NODE_TYPE_MAP[nodeType]
+      data: JSON.parse(JSON.stringify(NODE_TYPE_MAP[nodeType]))
     }]);
   }
 
@@ -144,6 +151,10 @@ export default function Macros() {
   }
 
   const handleSaveMacro = async () => {
+    console.log(JSON.stringify(inputValues));
+    const actions: string[] = Object.keys(inputValues).map((phrase) => JSON.stringify(inputValues[phrase]));
+    console.log(actions);
+
     const executionJson = createExecutionJson();
 
     const uploadUrl = await generateUploadUrl();
@@ -158,7 +169,7 @@ export default function Macros() {
     const response = await result.json();
     const macroStorageId = response.storageId;
 
-    await createMacro({ name: macroName, macroStorageId, activationPhrases: activationPhrases.split('\n'), actions: [] });
+    await createMacro({ name: macroName, macroStorageId, activationPhrases: activationPhrases, actions: actions });
 
     setShowMacroUploadModal(false);
   }
@@ -223,16 +234,48 @@ export default function Macros() {
                 />
               </Form.Group>
               <Form.Group className="mb-3">
-                <Form.Label>Activation Phrases (one per line)</Form.Label>
+                <Form.Label>Activation Phrase (press enter to add)</Form.Label>
                 <Form.Control
-                  as="textarea"
-                  rows={3}
-                  value={activationPhrases}
-                  onChange={(e) => setActivationPhrases(e.target.value)}
+                  type="text"
+                  value={activationPhrase}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      setActivationPhrases([...activationPhrases, activationPhrase]);
+                      setActivationPhrase('');
+                    }
+                  }}
+                  onChange={(e) => {
+                    setActivationPhrase(e.target.value);
+                  }}
                   placeholder="Enter activation phrases"
                 />
               </Form.Group>
             </Form>
+            <ListGroup>
+              {activationPhrases.map((phrase) => (
+                <ListGroup.Item key={phrase}>
+                  "{phrase}"
+                  <div style={{marginLeft: '16px'}}></div>
+                  <p>
+                    <span style={{fontWeight: 'bold'}}>{macroName}</span>:
+                    {inputs.map((value) => (
+                      <span key={value.id}>
+                        <span>{value.id}</span>:
+                        <input style={{width: '50px'}} type="text" value={inputValues[phrase]?.[value.id] || ''} onChange={(e) => setInputValues({...inputValues, [phrase]: {...inputValues[phrase], [value.id]: e.target.value}  })} />
+                      </span>
+                    ))}
+                  </p>
+                  <Button 
+                    variant="link" 
+                    className="float-end" 
+                    onClick={() => setActivationPhrases(activationPhrases.filter(p => p !== phrase))}
+                    style={{padding: '0', color: '#666', textDecoration: 'none'}}
+                  >
+                    x
+                  </Button>
+                </ListGroup.Item>
+              ))}
+            </ListGroup>
           </Modal.Body>
           <Modal.Footer>
             <Button variant="primary" onClick={handleSaveMacro} disabled={macroName.length === 0 || activationPhrases.length === 0}>
