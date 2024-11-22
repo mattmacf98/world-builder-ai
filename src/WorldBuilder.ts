@@ -1,18 +1,12 @@
-import { AbstractMesh, PointerEventTypes, SceneLoader, Vector3 } from "@babylonjs/core";
-import { GizmoManager, Scene, MeshBuilder, HemisphericLight, PointLight, DirectionalLight, SpotLight } from "@babylonjs/core";
+import { AbstractMesh, Color3, PBRMaterial, PointerEventTypes, SceneLoader } from "@babylonjs/core";
+import { GizmoManager, Scene, MeshBuilder } from "@babylonjs/core";
 import { IGLTFX, IReferencedAsset, INode } from "./glTFx/IGLTFX";
 import { GLTFXLoader } from "./glTFx/glTFXLoader";
+import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 
 export enum ObjectType { 
     Sphere = 'sphere',
     Box = 'box',
-}
-
-export enum LightType {
-    Hemispheric = 'hemispheric',
-    Directional = 'directional',
-    Point = 'point',
-    Spot = 'spot',
 }
 
 export class WorldBuilder {
@@ -288,42 +282,6 @@ export class WorldBuilder {
           this._worldExtensionsUsed.add("WRLD_parametrized_asset");
           this._worldExtensionsRequired.add("WRLD_parametrized_asset");
           break;
-      }
-    }
-  
-    addLight(type: LightType) {
-      let light;
-      switch (type) {
-        case LightType.Hemispheric:
-          light = new HemisphericLight('hemiLight', new Vector3(0, 0, 0), this._scene);
-          break;
-        case LightType.Point:
-          light = new PointLight('pointLight', new Vector3(0, 0, 0), this._scene);
-          break;
-        case LightType.Directional:
-          light = new DirectionalLight('dirLight', new Vector3(0, -1, 0), this._scene);
-          break;
-        case LightType.Spot:
-          light = new SpotLight('spotLight', new Vector3(0, 0, 0), new Vector3(0, 0, 1), Math.PI/3, 2, this._scene);
-          break;
-      }
-  
-      const lightSphere = MeshBuilder.CreateSphere('lightBulb', { diameter: 0.5 }, this._scene);
-      this._worldAssets.push({ name: lightSphere.name, mesh: lightSphere });
-      this._worldNodes.push({ name: lightSphere.name, asset: this._worldAssets.length - 1, translation: [0, 1, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] });
-      lightSphere.position = new Vector3(0, 1, 0);
-      lightSphere.isPickable = true;
-      lightSphere.visibility = 0.5;
-      
-      lightSphere.receiveShadows = false;
-      lightSphere.applyFog = false;
-      
-      lightSphere.renderingGroupId = 1;
-      
-      if (light) {
-        lightSphere.metadata = { light };
-        light.parent = lightSphere;
-        this._gizmoManager.attachableMeshes?.push(lightSphere);
       }
     }
   }

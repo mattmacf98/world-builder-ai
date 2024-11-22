@@ -8,6 +8,7 @@ import {
     MeshBuilder,
     StandardMaterial,
     Color3,
+    HemisphericLight,
   } from '@babylonjs/core';
   import "@babylonjs/loaders/glTF";
   import { MutableRefObject, useEffect, useRef, useState, useCallback } from 'react';
@@ -22,9 +23,10 @@ import {
   import { useAI } from '../hooks/useAI';
   import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
   import { fileService } from '../fileService';
-import { LightType, ObjectType, WorldBuilder } from '../WorldBuilder';
+import { ObjectType, WorldBuilder } from '../WorldBuilder';
 import { MacroNodeEngine } from '../macroEngine/Engine';
 import { BabylonDecorator } from '../macroEngine/Decorator';
+import { FaMicrophone } from "react-icons/fa";
   
   GLTFXLoader.RegisterExtension("WRLD_parametrized_asset", (loader) => {
     return new WRLD_parametrized_asset(loader);
@@ -80,6 +82,7 @@ import { BabylonDecorator } from '../macroEngine/Decorator';
     const [searchParams] = useSearchParams();
     const worldId = searchParams.get('worldId');
     const [macroScreen, setMacroScreen] = useState(false);
+    const [controlPanelOpen, setControlPanelOpen] = useState(false);
     const macros = useQuery(api.macro.getMacros);
     const aiChatRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -152,6 +155,10 @@ import { BabylonDecorator } from '../macroEngine/Decorator';
         groundMaterial.diffuseColor = new Color3(0.95, 0.95, 0.95);
         ground.material = groundMaterial;
         ground.position.y = -1;
+
+        // Create a hemisphere light
+        const hemiLight = new HemisphericLight("hemiLight", new Vector3(0, 1, 0), scene);
+        hemiLight.intensity = 0.5;
   
         worldBuilder.current = new WorldBuilder(scene);
   
@@ -338,71 +345,93 @@ import { BabylonDecorator } from '../macroEngine/Decorator';
   
     return (
       <Container fluid className="p-0" style={{ height: '95vh' }}>
-        <Row className="g-0" style={{ height: '100%' }}>
-          <Col md={10}>
-            <canvas
-              ref={canvasRef}
-              style={{ width: '100%', height: '100%' }}
-            />
-          </Col>
-          <Col md={2} className="bg-light p-3" style={{ height: '100%', overflowY: 'auto' }}>
-            <h4>Control Panel</h4>
-  
-            <Form.Group className="mb-3">
-              <Form.Label>Add Object</Form.Label>
-              <Form.Select onChange={(e) => {
-                worldBuilder.current?.addObject(e.target.value as ObjectType);
+        
+        <canvas ref={canvasRef} style={{ width: '100%', height: '100%' }}/>
+
+        <Button 
+          onClick={() => setControlPanelOpen(prev => !prev)} 
+          style={{ 
+            position: 'absolute', 
+            top: '7.5vh', 
+            right: '3vw', 
+            padding: '0px 10px 5px 10px', 
+            fontSize: '1.5rem',
+            border: 'none' 
+          }}
+        >
+          &#9776;
+        </Button>
+
+        <div style={{
+          position: "absolute",
+          right: controlPanelOpen ? 0: -100, 
+          top: 0, 
+          bottom: 0, 
+          width: controlPanelOpen ? '20vw' : '0', 
+          borderLeft: '1px solid black',
+          backgroundColor: 'white', 
+          overflow: 'hidden', 
+          transition: 'width 0.3s ease, border-left 0.3s ease' 
+          
+        }}>
+          <div style={{display:"flex", flexDirection: "row", padding: 16}}>
+            <Button 
+              onClick={() => setControlPanelOpen(prev => !prev)} 
+              style={{ 
+                padding: '0px 10px 0px 10px', 
+                marginRight: 10,
+                fontSize: '1.0rem',
+                border: 'none' 
+              }}
+            >
+              &#9664;
+            </Button>
+            <h3>Control Panel</h3>
+          </div>
+
+          <div style={{background: "#F1F1F2", padding: 8}}>
+            <h5>Add Object</h5>
+          </div>
+          <div style={{padding: 8}}>
+              <Button style={{margin: 8}} onClick={() => {
+                worldBuilder.current?.addObject(ObjectType.Sphere);
                 triggerRerender();
-              }}>
-                <option value="">Select object...</option>
-                <option value={ObjectType.Sphere}>Sphere</option>
-                <option value={ObjectType.Box}>Box</option>
-              </Form.Select>
-            </Form.Group>
-  
-            <Form.Group className="mb-3">
-              <Form.Label>Upload GLB Model</Form.Label>
-              <Form.Control 
-                type="file" 
-                accept=".glb"
-                onChange={(e) => {
-                  const file = (e.target as HTMLInputElement).files?.[0];
-                  if (file) handleLoadGLBModel(file);
-                }}
-              />
-            </Form.Group>
-  
-            <Form.Group className="mb-3">
-              <Form.Label>Add Light</Form.Label>
-              <Form.Select onChange={(e) => {
-                worldBuilder.current?.addLight(e.target.value as LightType);
+              }}>Sphere</Button>
+              <Button  style={{margin: 8}} onClick={() => {
+                worldBuilder.current?.addObject(ObjectType.Box);
                 triggerRerender();
-              }}>
-                <option value="">Select light type...</option>
-                <option value={LightType.Hemispheric}>Hemispheric Light</option>
-                <option value={LightType.Point}>Point Light</option>
-                <option value={LightType.Directional}>Directional Light</option>
-                <option value={LightType.Spot}>Spot Light</option>
-              </Form.Select>
-            </Form.Group>
-  
+              }}>Box</Button>
+
+              <Form.Group className="mb-3">
+                <Form.Label>Upload GLB Model</Form.Label>
+                <Form.Control 
+                  type="file" 
+                  accept=".glb"
+                  onChange={(e) => {
+                    const file = (e.target as HTMLInputElement).files?.[0];
+                    if (file) handleLoadGLBModel(file);
+                  }}
+                />
+              </Form.Group>
+          </div>
+
+          <div style={{background: "#F1F1F2", padding: 8}}>
+            <h5>
+              AI  
+              <FaMicrophone style={{color: isListening ? "red" : "black", marginLeft: 8}} onClick={() => {
+                if (isListening) {
+                  recognition.current?.stop();
+                } else {
+                  recognition.current?.start();
+                  setIsListening(true);
+                }
+              }}/>
+            </h5>
+          </div>
+
+          <div style={{padding: 8}}>
             <Form.Group className="mb-3" >
               <Form.Label>Chat</Form.Label>
-              <div className="d-flex gap-2 mb-2">
-                <Button 
-                  variant={isListening ? "danger" : "primary"}
-                  onClick={() => {
-                    if (isListening) {
-                      recognition.current?.stop();
-                    } else {
-                      recognition.current?.start();
-                      setIsListening(true);
-                    }
-                  }}
-                >
-                  {isListening ? "Stop Listening" : "Start Listening"}
-                </Button>
-              </div>
               <Form.Control 
                 as="textarea" 
                 disabled={aiLoading}
@@ -421,51 +450,37 @@ import { BabylonDecorator } from '../macroEngine/Decorator';
                 }}
               />
             </Form.Group>
-  
+
             {aiLoading && <Spinner animation="border" className="mt-3" />}
-  
-            <Form.Group className="mb-3">
-              <Form.Label>World Objects</Form.Label>
-              <div className="border rounded p-2" style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                {worldBuilder.current?.worldNodes.map((node, index) => (
-                  <div 
-                    key={`${index}-${node.name}`} 
-                    className="p-1 cursor-pointer" 
-                    onClick={() => worldBuilder.current?.selectMesh(index)}
-                    style={{ cursor: 'pointer' }}
-                  >
-                    {index}: {node.name}
-                  </div>
-                ))}
+          </div>
+          
+          <div style={{background: "#F1F1F2", padding: 8}}>
+            <h5>World Objects</h5>
+          </div>
+
+          <div className="border rounded p-2" style={{ maxHeight: '200px', overflowY: 'auto', padding: 8}}>
+            {worldBuilder.current?.worldNodes.map((node, index) => (
+              <div 
+                key={`${index}-${node.name}`} 
+                className="p-1 cursor-pointer" 
+                onClick={() => worldBuilder.current?.selectMesh(index)}
+                style={{ cursor: 'pointer' }}
+              >
+                {index}: {node.name}
               </div>
-            </Form.Group>
-  
-            <Button onClick={() => fileService.exportGLTFX(worldBuilder.current?.getGlTFX())}>Export GLTFX</Button>
-            
-            <input
-              type="file"
-              accept=".gltfx"
-              style={{ display: 'none' }}
-              id="gltfx-file-input"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) {
-                  fileService.loadGLTFX(file).then(gltfx => {
-                    worldBuilder.current?.loadGLTFX(gltfx);
-                    triggerRerender();
-                  });
-                }
-              }}
-            />
-            <Button onClick={() => {
-              document.getElementById('gltfx-file-input')?.click();
-            }}>Load GLTFX</Button>
-            <Button onClick={handleUploadGLTFX}>Upload GLTFX</Button>
+            ))}
+          </div>
 
+          <div style={{background: "#F1F1F2", padding: 8}}>
+            <h5>Options</h5>
+          </div>
 
-            <Button onClick={showMacroScreen}>Macro</Button>
-          </Col>
-        </Row>
+          <div style={{padding: 8, display: "flex", flexDirection: "column", alignItems: "center"}}>
+            <Button onClick={handleUploadGLTFX} style={{width: 256, margin: 8}}>Upload GLTFX</Button>
+            <Button onClick={showMacroScreen} style={{width: 256, margin: 8}}>Macro</Button>
+          </div>
+        </div>
+
 
         <Modal show={macroScreen} onHide={() => setMacroScreen(false)}>
           <Modal.Header closeButton>
@@ -533,5 +548,9 @@ import { BabylonDecorator } from '../macroEngine/Decorator';
       </>
     )
   }
+
+  const Spacer = ({ height }: { height: number }) => {
+    return <div style={{ height }} />;
+  };
   
   export default WorldBuilderPage;
