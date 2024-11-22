@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Button, Modal, Form, ListGroup } from 'react-bootstrap';
+import { Button, Modal, Form, ListGroup, FormControl } from 'react-bootstrap';
 import ReactFlow, { 
   Controls,
   Background,
@@ -30,9 +30,23 @@ export default function Macros() {
   const [activationPhrase, setActivationPhrase] = useState('');
   const [activationPhrases, setActivationPhrases] = useState<string[]>([]);
   const [inputValues, setInputValues] = useState<{[key: string]: {[key: string]: string}}>({});
+  const [contextClick, setContextClick] = useState<{x: number, y: number} | null>(null);
 
   const createMacro = useMutation(api.macro.createMacro);
   const generateUploadUrl = useMutation(api.world.generateUploadUrl);
+
+  useEffect(() => {
+    const handleContextMenu = (event: MouseEvent) => {
+      event.preventDefault();
+      setContextClick({ x: event.clientX, y: event.clientY });
+    };
+
+    window.addEventListener('contextmenu', handleContextMenu);
+
+    return () => {
+      window.removeEventListener('contextmenu', handleContextMenu);
+    };
+  }, []);
 
   useEffect(() => {
     setInputs(nodes.filter((node) => node.data.type === MacroNodeType.INPUT).map((node) => node.data.inputParameter!));
@@ -72,13 +86,12 @@ export default function Macros() {
     }
   }
 
-  const handleNodeSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const nodeType = e.target.value;
+  const addNode = (nodeType: string) => {
 
     setNodes((nds) => [...nds, {
       id: `${nds.length + 1}`,
       type: 'custom',
-      position: { x: 0, y: 0 },
+      position: { x: contextClick?.x || 0, y: contextClick?.y || 0 },
       data: JSON.parse(JSON.stringify(NODE_TYPE_MAP[nodeType]))
     }]);
   }
@@ -189,34 +202,15 @@ export default function Macros() {
           >
             <Background />
             <Controls />
+            <Button style={{position: "absolute", right: 32, bottom: 32, cursor: "pointer", zIndex: 999}} onClick={() => setShowMacroUploadModal(true)}>
+              Create
+            </Button>
           </ReactFlow>
         </div>
-        <div style={{ 
-          width: '300px',
-          backgroundColor: 'white',
-          borderLeft: '1px solid #ccc',
-          borderRadius: '8px 0 0 8px',
-          margin: '16px 32px 16px 0',
-          boxShadow: '2px 0 10px rgba(0,0,0,0.1)'
-        }}>
-          <select 
-            onChange={(handleNodeSelect)}
-            style={{
-              width: '100%',
-              padding: '8px',
-              borderRadius: '4px',
-              border: '1px solid #ccc'
-            }}
-          >
-            {Object.keys(NODE_TYPE_MAP).map((nodeType) => (
-              <option key={nodeType} value={nodeType}>{nodeType}</option>
-            ))}
-          </select>
 
-          <Button onClick={() => setShowMacroUploadModal(true)}>
-            Save
-          </Button>
-        </div>
+        {
+          contextClick && <AddMacroOverlay x={contextClick.x} y={contextClick.y} close={() => setContextClick(null)} addNode={addNode} />
+        }
 
         <Modal show={showMacroUploadModal} onHide={() => setShowMacroUploadModal(false)}>
           <Modal.Header closeButton>
@@ -286,3 +280,43 @@ export default function Macros() {
       </div>
     );
   }
+
+
+
+interface IAddMacroOverlayProps {
+  x: number;
+  y: number;
+  close(): void;
+  addNode(nodeType: string): void;
+}
+const AddMacroOverlay = (props: IAddMacroOverlayProps) => {
+  const [searchText, setSearchText] = useState('');
+
+  return (
+    <div style={{ position: 'absolute', left: props.x, top: props.y, padding:'16px', backgroundColor: 'white', borderRadius: '8px', boxShadow: '0 0 10px rgba(0,0,0,0.1)', maxHeight: '400px', overflowY: 'auto' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h5>Add Macro</h5>
+        <Button variant="link" onClick={props.close} style={{ padding: '0', color: '#666', textDecoration: 'none' }}>
+          <h4>X</h4>
+        </Button>
+      </div>
+      <FormControl
+        type="text"
+        placeholder="Search..."
+        value={searchText}
+        onChange={(e) => setSearchText(e.target.value)}
+        style={{ marginBottom: '16px' }}
+      />
+      {Object.keys(NODE_TYPE_MAP)
+        .filter((nodeType) => nodeType.toLowerCase().includes(searchText.toLowerCase()))
+        .map((nodeType) => (
+          <div key={nodeType} style={{ padding: '8px 0', borderBottom: '1px solid #ccc' }} onClick={() => {
+            props.addNode(nodeType);
+            props.close();
+          }}>
+            {nodeType}
+          </div>
+        ))}
+    </div>
+  );
+};
