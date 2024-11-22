@@ -66,4 +66,10 @@ export class SetPositionNodeEngine extends MacroNodeEngineNode {
     protected _execute(): void {
       this._decorator.setObjectPosition(this._inputValues.objectIndex, this._inputValues.position);
     }
+}
+
+export class SetScaleNodeEngine extends MacroNodeEngineNode {
+  protected _execute(): void {
+    this._decorator.setObjectScale(this._inputValues.objectIndex, this._inputValues.scale);
   }
+}

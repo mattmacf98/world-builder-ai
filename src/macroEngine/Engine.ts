@@ -1,14 +1,15 @@
 import { IEngineActionDecorator } from "./Decorator";
-import { IEngineNode, StartNodeEngine, Float3NodeEngine, SetPositionNodeEngine, IEngineInput, MacroNodeEngineNode } from "./EngineNodes";
+import { IEngineNode, StartNodeEngine, Float3NodeEngine, SetPositionNodeEngine, IEngineInput, MacroNodeEngineNode, SetScaleNodeEngine } from "./EngineNodes";
 import { IValueSocket, ValueType } from "./MacroNodes";
 
 const NODE_ENGINE_MAP: Record<string, new (node: IEngineNode, engine: MacroNodeEngine, decorator: IEngineActionDecorator) => MacroNodeEngineNode> = {
     'Start': StartNodeEngine,
     'Float3': Float3NodeEngine,
     'SetPosition': SetPositionNodeEngine,
+    'SetScale': SetScaleNodeEngine,
   }
 
-const ACTION_NODE_TYPES = ['SetPosition', 'Start'];
+const ACTION_NODE_TYPES = ['SetPosition', 'SetScale', 'Start'];
 const GETTER_NODE_TYPES = ['Float3'];
 
 export class MacroNodeEngine {

@@ -199,6 +199,21 @@ export class WorldBuilder {
       if (!this._selectedMesh) return;
       this._selectedMesh.position.z = amount;
     }
+
+    setScaleX(amount: number) {
+      if (!this._selectedMesh) return;
+      this._selectedMesh.scaling.x = amount;
+    }
+
+    setScaleY(amount: number) {
+      if (!this._selectedMesh) return;
+      this._selectedMesh.scaling.y = amount;
+    }
+
+    setScaleZ(amount: number) {
+      if (!this._selectedMesh) return;
+      this._selectedMesh.scaling.z = amount;
+    }
   
     translateX(amount: number) {
       if (!this._selectedMesh) return;

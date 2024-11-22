@@ -104,18 +104,20 @@ import { BabylonDecorator } from '../macroEngine/Decorator';
       initialize: initializeSpeech 
     } = useSpeechRecognition((transcript) => {
       setAiChatText(transcript);
-      if (aiChatRef.current) {
-        aiChatRef.current.focus();
-        const enterEvent = new KeyboardEvent('keydown', {
-          key: 'Enter',
-          code: 'Enter',
-          keyCode: 13,
-          which: 13,
-          bubbles: true,
-          cancelable: true
-        });
-        aiChatRef.current.dispatchEvent(enterEvent);
-      }
+      setTimeout(() => {
+        if (aiChatRef.current) {
+          aiChatRef.current.focus();
+          const enterEvent = new KeyboardEvent('keydown', {
+            key: 'Enter',
+            code: 'Enter',
+            keyCode: 13,
+            which: 13,
+            bubbles: true,
+            cancelable: true
+          });
+          aiChatRef.current.dispatchEvent(enterEvent);
+        }
+      }, 100);
     });
   
     const createWorld = useMutation(api.world.createWorld);
@@ -394,6 +396,7 @@ import { BabylonDecorator } from '../macroEngine/Decorator';
                 onKeyDown={async (e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
+                    console.log(aiChatText);
                     executeAIChat(aiChatText ?? "", macroPrompt, parseAIResponse);
                   }
                 }}
