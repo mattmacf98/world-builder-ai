@@ -4,6 +4,10 @@ import {
     FreeCamera, 
     Vector3, 
     KeyboardInfo,
+    CubeTexture,
+    MeshBuilder,
+    StandardMaterial,
+    Color3,
   } from '@babylonjs/core';
   import "@babylonjs/loaders/glTF";
   import { MutableRefObject, useEffect, useRef, useState, useCallback } from 'react';
@@ -128,11 +132,26 @@ import { BabylonDecorator } from '../macroEngine/Decorator';
       if (canvasRef.current) {
         const engine = new Engine(canvasRef.current, true);
         const scene = new Scene(engine);
+        scene.clearColor.set(0.9, 0.9, 0.9, 1);
   
         // Create a camera
         const camera = new FreeCamera('camera1', new Vector3(0, 5, -10), scene);
-        camera.setTarget(Vector3.Zero());
+        camera.setTarget(new Vector3(0, 2, 0));
         camera.attachControl(canvasRef.current, true);
+
+
+        // Load an IBL (Image-Based Lighting) environment texture
+        const hdrTexture = CubeTexture.CreateFromPrefilteredData("environmentSpecular.env", scene);
+        scene.environmentTexture = hdrTexture;
+        scene.clearColor.set(0.9, 0.9, 0.9, 1);
+
+        // Create a ground plane
+        const ground = MeshBuilder.CreateGround("ground", { width: 1000, height: 1000 }, scene);
+        const groundMaterial = new StandardMaterial("groundMaterial", scene);
+        groundMaterial.alpha = 0.025;
+        groundMaterial.diffuseColor = new Color3(0.95, 0.95, 0.95);
+        ground.material = groundMaterial;
+        ground.position.y = -1;
   
         worldBuilder.current = new WorldBuilder(scene);
   
