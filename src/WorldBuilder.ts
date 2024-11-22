@@ -1,4 +1,4 @@
-import { AbstractMesh, Color3, PBRMaterial, PointerEventTypes, SceneLoader } from "@babylonjs/core";
+import { AbstractMesh, Color3, PBRMaterial, PointerEventTypes, Quaternion, SceneLoader } from "@babylonjs/core";
 import { GizmoManager, Scene, MeshBuilder } from "@babylonjs/core";
 import { IGLTFX, IReferencedAsset, INode } from "./glTFx/IGLTFX";
 import { GLTFXLoader } from "./glTFx/glTFXLoader";
@@ -172,6 +172,10 @@ export class WorldBuilder {
     get selectedMesh() {
       return this._selectedMesh;
     }
+
+    getMesh(index: number) {
+      return this._worldAssets[this._worldNodes[index].asset!].mesh!;
+    }
   
     selectMesh(index: number) {
       if (index < 0 || index >= this._worldNodes.length) return;
@@ -237,6 +241,11 @@ export class WorldBuilder {
     rotateZ(amount: number) {
       if (!this._selectedMesh) return;
       this._selectedMesh.rotation.z += amount * Math.PI / 180;
+    }
+
+    setRotation(rotation: [number, number, number, number]) {
+      if (!this._selectedMesh) return;
+      this._selectedMesh.rotationQuaternion = new Quaternion(rotation[0], rotation[1], rotation[2], rotation[3]);
     }
   
     scaleX(amount: number) {

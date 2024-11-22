@@ -1,28 +1,27 @@
 import { 
-    Engine, 
-    Scene, 
-    FreeCamera, 
-    Vector3, 
-    KeyboardInfo,
-    CubeTexture,
-    MeshBuilder,
-    StandardMaterial,
-    Color3,
-    HemisphericLight,
-  } from '@babylonjs/core';
-  import "@babylonjs/loaders/glTF";
-  import { MutableRefObject, useEffect, useRef, useState, useCallback } from 'react';
-  import { useSearchParams } from 'react-router-dom';
-  import { Container, Row, Col, Form, Spinner, Button, Modal } from 'react-bootstrap';
-  import { IReferencedAsset } from '../glTFx/IGLTFX';
-  import { GLTFXLoader } from '../glTFx/glTFXLoader';
-  import { WRLD_parametrized_asset } from '../glTFx/extensions/WRLD_parametrized_asset';
-  import { useMutation, useQuery } from 'convex/react';
-  import { api } from '../../convex/_generated/api';
-  import { Id } from '../../convex/_generated/dataModel';
-  import { useAI } from '../hooks/useAI';
-  import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
-  import { fileService } from '../fileService';
+  Engine, 
+  Scene, 
+  FreeCamera, 
+  Vector3, 
+  KeyboardInfo,
+  CubeTexture,
+  MeshBuilder,
+  StandardMaterial,
+  Color3,
+  HemisphericLight,
+} from '@babylonjs/core';
+import "@babylonjs/loaders/glTF";
+import { MutableRefObject, useEffect, useRef, useState, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { Container, Row, Col, Form, Spinner, Button, Modal } from 'react-bootstrap';
+import { IReferencedAsset } from '../glTFx/IGLTFX';
+import { GLTFXLoader } from '../glTFx/glTFXLoader';
+import { WRLD_parametrized_asset } from '../glTFx/extensions/WRLD_parametrized_asset';
+import { useMutation, useQuery } from 'convex/react';
+import { api } from '../../convex/_generated/api';
+import { Id } from '../../convex/_generated/dataModel';
+import { useAI } from '../hooks/useAI';
+import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { ObjectType, WorldBuilder } from '../WorldBuilder';
 import { MacroNodeEngine } from '../macroEngine/Engine';
 import { BabylonDecorator } from '../macroEngine/Decorator';
@@ -135,7 +134,6 @@ import { FaMicrophone } from "react-icons/fa";
       if (canvasRef.current) {
         const engine = new Engine(canvasRef.current, true);
         const scene = new Scene(engine);
-        scene.clearColor.set(0.9, 0.9, 0.9, 1);
   
         // Create a camera
         const camera = new FreeCamera('camera1', new Vector3(0, 5, -10), scene);

@@ -1,16 +1,32 @@
 import { IEngineActionDecorator } from "./Decorator";
-import { IEngineNode, StartNodeEngine, Float3NodeEngine, SetPositionNodeEngine, IEngineInput, MacroNodeEngineNode, SetScaleNodeEngine } from "./EngineNodes";
+import { IEngineNode, StartNodeEngine, Float3NodeEngine, SetPositionNodeEngine, IEngineInput, MacroNodeEngineNode, SetScaleNodeEngine, SetRotationNodeEngine, IntNodeEngine, FloatNodeEngine, Float4NodeEngine, AddIntNodeEngine, ConstructFloat3NodeEngine, DestructFloat3NodeEngine, DivideFloat3NodeEngine, GetBoundingBoxNodeEngine, GetPositionNodeEngine, GetRotationNodeEngine, GetScaleNodeEngine, MultiplyFloat3NodeEngine, SubIntNodeEngine } from "./EngineNodes";
 import { IValueSocket, ValueType } from "./MacroNodes";
 
 const NODE_ENGINE_MAP: Record<string, new (node: IEngineNode, engine: MacroNodeEngine, decorator: IEngineActionDecorator) => MacroNodeEngineNode> = {
     'Start': StartNodeEngine,
+    'Int': IntNodeEngine,
+    'Float': FloatNodeEngine,
     'Float3': Float3NodeEngine,
+    'Float4': Float4NodeEngine,
+    'DivideFloat3': DivideFloat3NodeEngine,
+    'MultiplyFloat3': MultiplyFloat3NodeEngine,
+    'ConstructFloat3': ConstructFloat3NodeEngine,
+    'DestructFloat3': DestructFloat3NodeEngine,
+    'AddInt': AddIntNodeEngine,
+    'SubInt': SubIntNodeEngine,
+    'GetPosition': GetPositionNodeEngine,
+    'GetScale': GetScaleNodeEngine,
+    'GetRotation': GetRotationNodeEngine,
     'SetPosition': SetPositionNodeEngine,
     'SetScale': SetScaleNodeEngine,
+    'SetRotation': SetRotationNodeEngine,
+    'GetBoundingBox': GetBoundingBoxNodeEngine,
   }
 
-const ACTION_NODE_TYPES = ['SetPosition', 'SetScale', 'Start'];
-const GETTER_NODE_TYPES = ['Float3'];
+const ACTION_NODE_TYPES = ['SetPosition', 'SetScale', 'SetRotation', 'Start'];
+const GETTER_NODE_TYPES = ['Int','Float','Float3', 'Float4', 'GetPosition', 'GetScale', 'GetRotation', 'GetBoundingBox', 
+  'ConstructFloat3', 'DestructFloat3', 'AddInt', 'SubInt', 'DivideFloat3', 'MultiplyFloat3'
+];
 
 export class MacroNodeEngine {
     private _nodes: IEngineNode[];

@@ -51,16 +51,78 @@ export abstract class MacroNodeEngineNode {
   }
 
 export class StartNodeEngine extends MacroNodeEngineNode {
-    protected _execute(): void {
-      // do nothing
-    }
+  protected _execute(): void {
+    // do nothing
   }
+}
+
+export class IntNodeEngine extends MacroNodeEngineNode {
+  protected _execute(): void {
+    this._outputValues.value = this._inputValues.value;
+  }
+}
 
 export class Float3NodeEngine extends MacroNodeEngineNode {
-    protected _execute(): void {
-      this._outputValues.value = [this._inputValues.x, this._inputValues.y, this._inputValues.z];
-    }
+  protected _execute(): void {
+    this._outputValues.value = [this._inputValues.x, this._inputValues.y, this._inputValues.z];
   }
+}
+
+export class DivideFloat3NodeEngine extends MacroNodeEngineNode {
+  protected _execute(): void {
+    this._outputValues.value = [this._inputValues.a[0] / this._inputValues.b[0], this._inputValues.a[1] / this._inputValues.b[1], this._inputValues.a[2] / this._inputValues.b[2]];
+  }
+}
+
+export class MultiplyFloat3NodeEngine extends MacroNodeEngineNode {
+  protected _execute(): void {
+    this._outputValues.value = [this._inputValues.a[0] * this._inputValues.b[0], this._inputValues.a[1] * this._inputValues.b[1], this._inputValues.a[2] * this._inputValues.b[2]];
+  }
+}
+
+export class Float4NodeEngine extends MacroNodeEngineNode {
+  protected _execute(): void {
+    this._outputValues.value = [this._inputValues.w, this._inputValues.x, this._inputValues.y, this._inputValues.z];
+  }
+}
+
+export class FloatNodeEngine extends MacroNodeEngineNode {
+  protected _execute(): void {
+    this._outputValues.value = this._inputValues.value;
+  }
+}
+
+export class ConstructFloat3NodeEngine extends MacroNodeEngineNode {
+  protected _execute(): void {
+    this._outputValues.value = [this._inputValues.x, this._inputValues.y, this._inputValues.z];
+  }
+}
+
+export class DestructFloat3NodeEngine extends MacroNodeEngineNode {
+  protected _execute(): void {
+    this._outputValues.x = this._inputValues.value[0];
+    this._outputValues.y = this._inputValues.value[1];
+    this._outputValues.z = this._inputValues.value[2];
+  }
+}
+
+export class AddIntNodeEngine extends MacroNodeEngineNode {
+  protected _execute(): void {
+    this._outputValues.value = this._inputValues.a + this._inputValues.b;
+  }
+}
+
+export class SubIntNodeEngine extends MacroNodeEngineNode {
+  protected _execute(): void {
+    this._outputValues.value = this._inputValues.a - this._inputValues.b;
+  }
+}
+
+export class GetPositionNodeEngine extends MacroNodeEngineNode {
+  protected _execute(): void {
+    this._outputValues.position = this._decorator.getObjectPosition(this._inputValues.objectIndex);
+  }
+}
 
 export class SetPositionNodeEngine extends MacroNodeEngineNode {
     protected _execute(): void {
@@ -68,8 +130,34 @@ export class SetPositionNodeEngine extends MacroNodeEngineNode {
     }
 }
 
+export class GetRotationNodeEngine extends MacroNodeEngineNode {
+  protected _execute(): void {
+    this._outputValues.rotation = this._decorator.getObjectRotation(this._inputValues.objectIndex);
+  }
+}
+
+export class SetRotationNodeEngine extends MacroNodeEngineNode {
+  protected _execute(): void {
+    this._decorator.setObjectRotation(this._inputValues.objectIndex, this._inputValues.rotation);
+  }
+}
+
+export class GetScaleNodeEngine extends MacroNodeEngineNode {
+  protected _execute(): void {
+    this._outputValues.scale = this._decorator.getObjectScale(this._inputValues.objectIndex);
+  }
+}
+
 export class SetScaleNodeEngine extends MacroNodeEngineNode {
   protected _execute(): void {
     this._decorator.setObjectScale(this._inputValues.objectIndex, this._inputValues.scale);
+  }
+}
+
+export class GetBoundingBoxNodeEngine extends MacroNodeEngineNode {
+  protected _execute(): void {
+    const {max, min} = this._decorator.getObjectBoundingBox(this._inputValues.objectIndex);
+    this._outputValues.max = max;
+    this._outputValues.min = min;
   }
 }
