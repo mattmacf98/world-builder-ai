@@ -5,7 +5,6 @@ import { useNavigate } from "react-router-dom";
 
 export default function Worlds() {
     const worlds = useQuery(api.world.getWorlds);
-    console.log(worlds);
     const navigate = useNavigate();
     return (
         <Container>

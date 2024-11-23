@@ -19,7 +19,7 @@ const nodeTypes = {
   custom: CustomNode,
 };
 
-export default function Macros() {
+const Macros = () => {
   const connectedInSockets = useRef(new Set<string>());
   const connectedFlowOutSockets = useRef(new Set<string>());
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
@@ -27,10 +27,6 @@ export default function Macros() {
   const [inputs, setInputs] = useState<{id: string, type: string}[]>([]);
   const [showMacroUploadModal, setShowMacroUploadModal] = useState(false);
   const [showLoadMacroModal, setShowLoadMacroModal] = useState(false);
-  const [macroName, setMacroName] = useState('');
-  const [activationPhrase, setActivationPhrase] = useState('');
-  const [activationPhrases, setActivationPhrases] = useState<string[]>([]);
-  const [inputValues, setInputValues] = useState<{[key: string]: {[key: string]: string}}>({});
   const [contextClick, setContextClick] = useState<{x: number, y: number} | null>(null)
 
   const createMacro = useMutation(api.macro.createMacro);
@@ -222,7 +218,7 @@ export default function Macros() {
     return JSON.stringify(executionJson, null, 2);
   }
 
-  const handleSaveMacro = async () => {
+  const handleSaveMacro = async (inputValues: {[key: string]: {[key: string]: string}}, macroName: string, activationPhrases: string[]) => {
     const actions: string[] = Object.keys(inputValues).map((phrase) => JSON.stringify(inputValues[phrase]));
 
     const executionJson = createExecutionJson();
@@ -272,97 +268,126 @@ export default function Macros() {
           contextClick && <AddMacroOverlay x={contextClick.x} y={contextClick.y} close={() => setContextClick(null)} addNode={addNode} />
         }
 
-        <Modal show={showLoadMacroModal} onHide={() => setShowLoadMacroModal(false)}>
-          <Modal.Header closeButton>
-            <Modal.Title>Load Macro</Modal.Title>
-          </Modal.Header>
-          <Modal.Body>
-            <div style={{overflowY: "auto"}}>
-              {macros && macros.map((macro) => {
-                return (
-                  <ListGroup.Item key={macro._id} style={{ cursor: 'pointer' }} onClick={() => loadMacro(macro.macroUrl!)}>
-                    {macro.name}
-                  </ListGroup.Item>
-                )
-              })}
-            </div>
-          </Modal.Body>
-          <Modal.Footer>
-            <Button variant="primary">
-              Load Macro
-            </Button>
-          </Modal.Footer>
-        </Modal>
-
-        <Modal show={showMacroUploadModal} onHide={() => setShowMacroUploadModal(false)}>
-          <Modal.Header closeButton>
-            <Modal.Title>Save Macro</Modal.Title>
-          </Modal.Header>
-          <Modal.Body>
-            <Form>
-              <Form.Group className="mb-3">
-                <Form.Label>Macro Name</Form.Label>
-                <Form.Control
-                  type="text"
-                  placeholder="Enter macro name"
-                  value={macroName}
-                  onChange={(e) => setMacroName(e.target.value)}
-                />
-              </Form.Group>
-              <Form.Group className="mb-3">
-                <Form.Label>Activation Phrase (press enter to add)</Form.Label>
-                <Form.Control
-                  type="text"
-                  value={activationPhrase}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      setActivationPhrases([...activationPhrases, activationPhrase]);
-                      setActivationPhrase('');
-                    }
-                  }}
-                  onChange={(e) => {
-                    setActivationPhrase(e.target.value);
-                  }}
-                  placeholder="Enter activation phrases"
-                />
-              </Form.Group>
-            </Form>
-            <ListGroup>
-              {activationPhrases.map((phrase) => (
-                <ListGroup.Item key={phrase}>
-                  "{phrase}"
-                  <div style={{marginLeft: '16px'}}></div>
-                  <p>
-                    <span style={{fontWeight: 'bold'}}>{macroName}</span>:
-                    {inputs.map((value) => (
-                      <span key={value.id}>
-                        <span>{value.id}</span>:
-                        <input style={{width: '50px'}} type="text" value={inputValues[phrase]?.[value.id] || ''} onChange={(e) => setInputValues({...inputValues, [phrase]: {...inputValues[phrase], [value.id]: e.target.value}  })} />
-                      </span>
-                    ))}
-                  </p>
-                  <Button 
-                    variant="link" 
-                    className="float-end" 
-                    onClick={() => setActivationPhrases(activationPhrases.filter(p => p !== phrase))}
-                    style={{padding: '0', color: '#666', textDecoration: 'none'}}
-                  >
-                    x
-                  </Button>
-                </ListGroup.Item>
-              ))}
-            </ListGroup>
-          </Modal.Body>
-          <Modal.Footer>
-            <Button variant="primary" onClick={handleSaveMacro} disabled={macroName.length === 0 || activationPhrases.length === 0}>
-              Save Macro
-            </Button>
-          </Modal.Footer>
-        </Modal>
+        <LoadMacroModal close={() => setShowLoadMacroModal(false)} shouldShow={showLoadMacroModal} macros={macros || []} loadMacro={loadMacro} />
+        <SaveMacroModal close={() => setShowMacroUploadModal(false)} shouldShow={showMacroUploadModal} inputs={inputs} saveMacro={handleSaveMacro} />
       </div>
     );
-  }
+}
 
+
+interface ISaveMacroModalProps {
+  close: () => void,
+  shouldShow: boolean,
+  inputs: {id: string, type: string}[],
+  saveMacro: (inputValues: {[key: string]: {[key: string]: string}}, macroName: string, activationPhrases: string[]) => void,
+}
+const SaveMacroModal = (props: ISaveMacroModalProps) => {
+  const [macroName, setMacroName] = useState('');
+  const [activationPhrase, setActivationPhrase] = useState('');
+  const [activationPhrases, setActivationPhrases] = useState<string[]>([]);
+  const [inputValues, setInputValues] = useState<{[key: string]: {[key: string]: string}}>({});
+
+  return (
+    <Modal show={props.shouldShow} onHide={props.close}>
+      <Modal.Header closeButton>
+        <Modal.Title>Save Macro</Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        <Form>
+          <Form.Group className="mb-3">
+            <Form.Label>Macro Name</Form.Label>
+            <Form.Control
+              type="text"
+              placeholder="Enter macro name"
+              value={macroName}
+              onChange={(e) => setMacroName(e.target.value)}
+            />
+          </Form.Group>
+          <Form.Group className="mb-3">
+            <Form.Label>Activation Phrase (press enter to add)</Form.Label>
+            <Form.Control
+              type="text"
+              value={activationPhrase}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  setActivationPhrases([...activationPhrases, activationPhrase]);
+                  setActivationPhrase('');
+                }
+              }}
+              onChange={(e) => {
+                setActivationPhrase(e.target.value);
+              }}
+              placeholder="Enter activation phrases"
+            />
+          </Form.Group>
+        </Form>
+        <ListGroup>
+          {activationPhrases.map((phrase) => (
+            <ListGroup.Item key={phrase}>
+              "{phrase}"
+              <div style={{marginLeft: '16px'}}></div>
+              <p>
+                <span style={{fontWeight: 'bold'}}>{macroName}</span>:
+                {props.inputs.map((value) => (
+                  <span key={value.id}>
+                    <span>{value.id}</span>:
+                    <input style={{width: '50px'}} type="text" value={inputValues[phrase]?.[value.id] || ''} onChange={(e) => setInputValues({...inputValues, [phrase]: {...inputValues[phrase], [value.id]: e.target.value}  })} />
+                  </span>
+                ))}
+              </p>
+              <Button 
+                variant="link" 
+                className="float-end" 
+                onClick={() => setActivationPhrases(activationPhrases.filter(p => p !== phrase))}
+                style={{padding: '0', color: '#666', textDecoration: 'none'}}
+              >
+                x
+              </Button>
+            </ListGroup.Item>
+          ))}
+        </ListGroup>
+      </Modal.Body>
+      <Modal.Footer>
+        <Button variant="primary" onClick={() => props.saveMacro(inputValues, macroName, activationPhrases)} disabled={macroName.length === 0 || activationPhrases.length === 0}>
+          Save Macro
+        </Button>
+      </Modal.Footer>
+    </Modal>
+  )
+}
+
+interface ILoadMacroModalProps {
+  close: () => void,
+  shouldShow: boolean,
+  macros: any[],
+  loadMacro: (macroUrl: string) => void,
+}
+const LoadMacroModal = (props: ILoadMacroModalProps) => (
+  <Modal show={props.shouldShow} onHide={props.close}>
+    <Modal.Header closeButton>
+      <Modal.Title>Load Macro</Modal.Title>
+    </Modal.Header>
+    <Modal.Body>
+      <div style={{overflowY: "auto"}}>
+        {props.macros.map((macro) => {
+          return (
+            <ListGroup.Item key={macro._id} style={{ cursor: 'pointer' }} onClick={() => {
+              props.loadMacro(macro.macroUrl!);
+              props.close();
+            }}>
+              {macro.name}
+            </ListGroup.Item>
+          )
+        })}
+      </div>
+    </Modal.Body>
+    <Modal.Footer>
+      <Button variant="primary">
+        Load Macro
+      </Button>
+    </Modal.Footer>
+  </Modal>
+)
 
 
 interface IAddMacroOverlayProps {
@@ -402,3 +427,5 @@ const AddMacroOverlay = (props: IAddMacroOverlayProps) => {
     </div>
   );
 };
+
+export default Macros;
