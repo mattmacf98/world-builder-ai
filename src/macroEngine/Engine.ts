@@ -1,5 +1,5 @@
 import { IEngineActionDecorator } from "./Decorator";
-import { IEngineNode, StartNodeEngine, Float3NodeEngine, SetPositionNodeEngine, IEngineInput, MacroNodeEngineNode, SetScaleNodeEngine, SetRotationNodeEngine, IntNodeEngine, FloatNodeEngine, Float4NodeEngine, AddIntNodeEngine, ConstructFloat3NodeEngine, DestructFloat3NodeEngine, DivideFloat3NodeEngine, GetBoundingBoxNodeEngine, GetPositionNodeEngine, GetRotationNodeEngine, GetScaleNodeEngine, MultiplyFloat3NodeEngine, SubIntNodeEngine } from "./EngineNodes";
+import { IEngineNode, StartNodeEngine, Float3NodeEngine, SetPositionNodeEngine, IEngineInput, MacroNodeEngineNode, SetScaleNodeEngine, SetRotationNodeEngine, IntNodeEngine, FloatNodeEngine, Float4NodeEngine, AddIntNodeEngine, ConstructFloat3NodeEngine, DestructFloat3NodeEngine, DivideFloat3NodeEngine, GetBoundingBoxNodeEngine, GetPositionNodeEngine, GetRotationNodeEngine, GetScaleNodeEngine, MultiplyFloat3NodeEngine, SubIntNodeEngine, AddFloat3NodeEngine, SubFloat3NodeEngine } from "./EngineNodes";
 import { IValueSocket, ValueType } from "./MacroNodes";
 
 const NODE_ENGINE_MAP: Record<string, new (node: IEngineNode, engine: MacroNodeEngine, decorator: IEngineActionDecorator) => MacroNodeEngineNode> = {
@@ -14,6 +14,8 @@ const NODE_ENGINE_MAP: Record<string, new (node: IEngineNode, engine: MacroNodeE
     'DestructFloat3': DestructFloat3NodeEngine,
     'AddInt': AddIntNodeEngine,
     'SubInt': SubIntNodeEngine,
+    'AddFloat3': AddFloat3NodeEngine,
+    'SubFloat3': SubFloat3NodeEngine,
     'GetPosition': GetPositionNodeEngine,
     'GetScale': GetScaleNodeEngine,
     'GetRotation': GetRotationNodeEngine,
@@ -25,7 +27,7 @@ const NODE_ENGINE_MAP: Record<string, new (node: IEngineNode, engine: MacroNodeE
 
 const ACTION_NODE_TYPES = ['SetPosition', 'SetScale', 'SetRotation', 'Start'];
 const GETTER_NODE_TYPES = ['Int','Float','Float3', 'Float4', 'GetPosition', 'GetScale', 'GetRotation', 'GetBoundingBox', 
-  'ConstructFloat3', 'DestructFloat3', 'AddInt', 'SubInt', 'DivideFloat3', 'MultiplyFloat3'
+  'ConstructFloat3', 'DestructFloat3', 'AddInt', 'SubInt', 'DivideFloat3', 'MultiplyFloat3', 'AddFloat3', 'SubFloat3'
 ];
 
 export class MacroNodeEngine {
@@ -102,7 +104,15 @@ export class MacroNodeEngine {
         throw new Error('Start node not found');
       }
 
-      this._engineNodes = this._nodes.map((node) => new NODE_ENGINE_MAP[node.type](node, this, this._decorator));
+      this._engineNodes = this._nodes.map((node) => {
+        try {
+          return new NODE_ENGINE_MAP[node.type](node, this, this._decorator);
+        } catch (e) {
+          console.error(`Issue creating node type: ${node.type}`);
+          throw new Error(`Failed to create engine nodes: ${e}`);
+        }
+      });
+      
       const startEngineNode = this._engineNodes.find((node) => node.type === 'Start');
       startEngineNode?.execute();
     }

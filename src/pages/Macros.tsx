@@ -15,6 +15,366 @@ import { CustomNode } from '../macroEngine/CustomNode';
 import { api } from '../../convex/_generated/api';
 import { useMutation } from 'convex/react';
 
+const macroJson = `
+  {
+  "inputs": [
+    {
+      "position": {
+        "x": -2643.5296278111596,
+        "y": -565.5023086599697
+      },
+      "parameter": "top",
+      "parameterType": "int"
+    },
+    {
+      "position": {
+        "x": -2473.491604864771,
+        "y": -978.0091297030298
+      },
+      "parameter": "bottom",
+      "parameterType": "int"
+    }
+  ],
+  "nodes": [
+    {
+      "position": {
+        "x": -92.95928361533748,
+        "y": -902.479711765568
+      },
+      "type": "Start",
+      "inputValues": [],
+      "outFlow": 15
+    },
+    {
+      "position": {
+        "x": -1993.2019728521943,
+        "y": -832.760249054065
+      },
+      "type": "GetBoundingBox",
+      "inputValues": [
+        {
+          "id": "objectIndex",
+          "inputIndex": 1,
+          "type": "int"
+        }
+      ]
+    },
+    {
+      "position": {
+        "x": -1957.5675807996486,
+        "y": -307.9276269758052
+      },
+      "type": "GetBoundingBox",
+      "inputValues": [
+        {
+          "id": "objectIndex",
+          "inputIndex": 0,
+          "type": "int"
+        }
+      ]
+    },
+    {
+      "position": {
+        "x": -1235.5838113871941,
+        "y": -1147.659822301021
+      },
+      "type": "AddFloat3",
+      "inputValues": [
+        {
+          "id": "a",
+          "referencedNodeId": 1,
+          "referencedValueId": "max",
+          "type": "float3"
+        },
+        {
+          "id": "b",
+          "referencedNodeId": 1,
+          "referencedValueId": "min",
+          "type": "float3"
+        }
+      ]
+    },
+    {
+      "position": {
+        "x": -784.34395550441,
+        "y": -704.9412340829758
+      },
+      "type": "DivideFloat3",
+      "inputValues": [
+        {
+          "id": "a",
+          "referencedNodeId": 3,
+          "referencedValueId": "value",
+          "type": "float3"
+        },
+        {
+          "id": "b",
+          "referencedNodeId": 5,
+          "referencedValueId": "value",
+          "type": "float3"
+        }
+      ]
+    },
+    {
+      "position": {
+        "x": -1253.01367706507,
+        "y": -703.0045823409897
+      },
+      "type": "Float3",
+      "inputValues": [
+        {
+          "id": "x",
+          "type": "float",
+          "value": "2"
+        },
+        {
+          "id": "y",
+          "type": "float",
+          "value": "2"
+        },
+        {
+          "id": "z",
+          "type": "float",
+          "value": "2"
+        }
+      ]
+    },
+    {
+      "position": {
+        "x": -505.46610465839757,
+        "y": -766.9140898265342
+      },
+      "type": "DestructFloat3",
+      "inputValues": [
+        {
+          "id": "value",
+          "referencedNodeId": 4,
+          "referencedValueId": "value",
+          "type": "float3"
+        }
+      ]
+    },
+    {
+      "position": {
+        "x": -34.5158108302912,
+        "y": -621.6652091775694
+      },
+      "type": "DestructFloat3",
+      "inputValues": [
+        {
+          "id": "value",
+          "referencedNodeId": 1,
+          "referencedValueId": "max",
+          "type": "float3"
+        }
+      ]
+    },
+    {
+      "position": {
+        "x": -588.5999999999999,
+        "y": -244
+      },
+      "type": "DivideFloat3",
+      "inputValues": [
+        {
+          "id": "a",
+          "referencedNodeId": 9,
+          "referencedValueId": "value",
+          "type": "float3"
+        },
+        {
+          "id": "b",
+          "referencedNodeId": 5,
+          "referencedValueId": "value",
+          "type": "float3"
+        }
+      ]
+    },
+    {
+      "position": {
+        "x": -1157.5746816841643,
+        "y": -209.7873233526073
+      },
+      "type": "AddFloat3",
+      "inputValues": [
+        {
+          "id": "a",
+          "referencedNodeId": 2,
+          "referencedValueId": "max",
+          "type": "float3"
+        },
+        {
+          "id": "b",
+          "referencedNodeId": 2,
+          "referencedValueId": "min",
+          "type": "float3"
+        }
+      ]
+    },
+    {
+      "position": {
+        "x": -330.09955225958595,
+        "y": -395.92307961376537
+      },
+      "type": "DestructFloat3",
+      "inputValues": [
+        {
+          "id": "value",
+          "referencedNodeId": 8,
+          "referencedValueId": "value",
+          "type": "float3"
+        }
+      ]
+    },
+    {
+      "position": {
+        "x": -319.371064781902,
+        "y": -68.66965160276047
+      },
+      "type": "DestructFloat3",
+      "inputValues": [
+        {
+          "id": "value",
+          "referencedNodeId": 2,
+          "referencedValueId": "min",
+          "type": "float3"
+        }
+      ]
+    },
+    {
+      "position": {
+        "x": 252.99999999999997,
+        "y": -623
+      },
+      "type": "ConstructFloat3",
+      "inputValues": [
+        {
+          "id": "x",
+          "referencedNodeId": 6,
+          "referencedValueId": "x",
+          "type": "float"
+        },
+        {
+          "id": "y",
+          "referencedNodeId": 7,
+          "referencedValueId": "y",
+          "type": "float"
+        },
+        {
+          "id": "z",
+          "referencedNodeId": 6,
+          "referencedValueId": "z",
+          "type": "float"
+        }
+      ]
+    },
+    {
+      "position": {
+        "x": 258,
+        "y": -258.9637959984279
+      },
+      "type": "ConstructFloat3",
+      "inputValues": [
+        {
+          "id": "x",
+          "referencedNodeId": 10,
+          "referencedValueId": "x",
+          "type": "float"
+        },
+        {
+          "id": "y",
+          "referencedNodeId": 11,
+          "referencedValueId": "y",
+          "type": "float"
+        },
+        {
+          "id": "z",
+          "referencedNodeId": 10,
+          "referencedValueId": "z",
+          "type": "float"
+        }
+      ]
+    },
+    {
+      "position": {
+        "x": 548,
+        "y": -389
+      },
+      "type": "SubFloat3",
+      "inputValues": [
+        {
+          "id": "a",
+          "referencedNodeId": 12,
+          "referencedValueId": "value",
+          "type": "float3"
+        },
+        {
+          "id": "b",
+          "referencedNodeId": 13,
+          "referencedValueId": "value",
+          "type": "float3"
+        }
+      ]
+    },
+    {
+      "position": {
+        "x": 1495,
+        "y": -339.0000000000001
+      },
+      "type": "SetPosition",
+      "inputValues": [
+        {
+          "id": "objectIndex",
+          "inputIndex": 0,
+          "type": "int"
+        },
+        {
+          "id": "position",
+          "referencedNodeId": 17,
+          "referencedValueId": "value",
+          "type": "float3"
+        }
+      ]
+    },
+    {
+      "position": {
+        "x": 117.03616902262246,
+        "y": 315.48418916970877
+      },
+      "type": "GetPosition",
+      "inputValues": [
+        {
+          "id": "objectIndex",
+          "inputIndex": 0,
+          "type": "int"
+        }
+      ]
+    },
+    {
+      "position": {
+        "x": 881,
+        "y": 98
+      },
+      "type": "AddFloat3",
+      "inputValues": [
+        {
+          "id": "a",
+          "referencedNodeId": 14,
+          "referencedValueId": "value",
+          "type": "float3"
+        },
+        {
+          "id": "b",
+          "referencedNodeId": 16,
+          "referencedValueId": "value",
+          "type": "float3"
+        }
+      ]
+    }
+  ]
+}
+`
+
 const nodeTypes = {
   custom: CustomNode,
 };
@@ -34,6 +394,10 @@ export default function Macros() {
 
   const createMacro = useMutation(api.macro.createMacro);
   const generateUploadUrl = useMutation(api.world.generateUploadUrl);
+
+  useEffect(() => {
+    loadFromJson(JSON.parse(macroJson));
+  }, []);
 
   useEffect(() => {
     const handleContextMenu = (event: MouseEvent) => {
@@ -121,7 +485,53 @@ export default function Macros() {
         type: valueType,
       }
     }
-     
+  }
+
+  const loadInputNode = (parameter: string, parameterType: string, position: {x: number, y:number}) => {
+    setNodes((nds) => [...nds, {
+      id: `${nds.length + 1}`,
+      type: 'custom',
+      position: { x: position.x, y:  position.y },
+      data: {...JSON.parse(JSON.stringify(NODE_TYPE_MAP["Input"])), inputParameter: {id: parameter, type: parameterType}}
+    }]);
+  }
+
+  const loadEngineNode = (nodeType: string, inlineInputValues: IValueSocket[], position: {x: number, y:number}) => {
+    setNodes((nds) => [...nds, {
+      id: `${nds.length + 1}`,
+      type: 'custom',
+      position: { x: position.x, y:  position.y },
+      data: {...JSON.parse(JSON.stringify(NODE_TYPE_MAP[nodeType])), inlineInputValues: inlineInputValues}
+    }]);
+  }
+
+  const loadFromJson = (json: any) => { 
+    const inputNodes = json["inputs"];
+    const engineNodes = json["nodes"];
+
+    for (const inputNode of inputNodes) {
+      loadInputNode(inputNode.parameter, inputNode.parameterType, inputNode.position);
+    }
+
+    for (const engineNode of engineNodes) {
+      const inlineInputValues = engineNode.inputValues.filter((value: IValueSocket) => value.inputIndex === undefined && value.referencedNodeId === undefined);
+      loadEngineNode(engineNode.type, inlineInputValues, engineNode.position);
+    }
+
+    for (let i = 0; i < engineNodes.length; i++) {
+      const engineNode = engineNodes[i];
+      if (engineNode.outFlow !== undefined) {
+        onConnect({ source: `${inputNodes.length + i + 1}`, target: `${inputNodes.length + 1 + engineNode.outFlow}`, sourceHandle: 'flow-out', targetHandle: 'flow-in' });
+      }
+      for (const engineInputValue of engineNode.inputValues) {
+          if (engineInputValue.inputIndex !== undefined) {
+            onConnect({ source: `${engineInputValue.inputIndex + 1}`, target: `${inputNodes.length + i + 1}`, sourceHandle: 'value--dynamic', targetHandle: `${engineInputValue.id}--${engineInputValue.type}` });
+          }
+          if (engineInputValue.referencedNodeId !== undefined) {
+            onConnect({ source: `${inputNodes.length + engineInputValue.referencedNodeId + 1}`, target: `${inputNodes.length + i + 1}`, sourceHandle: `${engineInputValue.referencedValueId}--${engineInputValue.type}`, targetHandle: `${engineInputValue.id}--${engineInputValue.type}` });
+          }
+      }
+    }
   }
 
   const createExecutionJson = () => {
@@ -136,6 +546,7 @@ export default function Macros() {
     );
 
     const inputsJson = inputNodes.map((node) => ({
+      position: node.position,
       parameter: node.data.inputParameter!.id,
       parameterType: node.data.inputParameter!.type,
     }));
@@ -143,12 +554,14 @@ export default function Macros() {
     const engineNodes = nonInputNodes.map((node) => {
       if (node.data.type === MacroNodeType.ACTION) {
         return {
+          position: node.position,
           type: node.data.label,
           inputValues: node.data.inputValues.map((value: IValueSocket) => getValueIn(node.id, value.id, value.type, nonInputNodeIdToIndex, inputNodeIdToIndex)),
           outFlow: getFlowOut(node.id, nonInputNodeIdToIndex),
         }
       } else {
         return {
+          position: node.position,
           type: node.data.label,
           inputValues: [...node.data.inlineInputValues, ...node.data.inputValues.map((value: IValueSocket) => getValueIn(node.id, value.id, value.type, nonInputNodeIdToIndex, inputNodeIdToIndex))],
         }
@@ -164,9 +577,7 @@ export default function Macros() {
   }
 
   const handleSaveMacro = async () => {
-    console.log(JSON.stringify(inputValues));
     const actions: string[] = Object.keys(inputValues).map((phrase) => JSON.stringify(inputValues[phrase]));
-    console.log(actions);
 
     const executionJson = createExecutionJson();
 

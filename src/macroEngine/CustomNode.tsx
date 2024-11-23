@@ -111,7 +111,7 @@ export const CustomNode = ({ data, id }: { data: IMacroNodeData, id: string }) =
                 position: 'relative',
                 marginBottom: '8px'
               }}>
-                <input type="text" placeholder={value.id} style={{
+                <input type="text" placeholder={value.id} defaultValue={value.value} style={{
                     marginLeft: '8px',
                     padding: '4px',
                     borderRadius: '4px',

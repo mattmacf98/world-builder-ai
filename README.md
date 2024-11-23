@@ -1,4 +1,5 @@
 # TODO
+- be able to load macros from json
 - images when save world
 - multiple macros
 - refactor code

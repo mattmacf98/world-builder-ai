@@ -57,6 +57,7 @@ export class BabylonDecorator implements IEngineActionDecorator {
     getObjectBoundingBox(objectIndex: number): { max: [number, number, number], min: [number, number, number] } {
         const mesh = this._worldBuilder.getMesh(objectIndex);
         const boundingBox = mesh.getBoundingInfo().boundingBox;
+
         return {
             max: [boundingBox.maximum.x, boundingBox.maximum.y, boundingBox.maximum.z],
             min: [boundingBox.minimum.x, boundingBox.minimum.y, boundingBox.minimum.z]

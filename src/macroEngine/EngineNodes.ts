@@ -118,9 +118,22 @@ export class SubIntNodeEngine extends MacroNodeEngineNode {
   }
 }
 
+export class AddFloat3NodeEngine extends MacroNodeEngineNode {
+  protected _execute(): void {
+    console.log(this._inputValues.a, this._inputValues.b);
+    this._outputValues.value = [this._inputValues.a[0] + this._inputValues.b[0], this._inputValues.a[1] + this._inputValues.b[1], this._inputValues.a[2] + this._inputValues.b[2]];
+  }
+}
+
+export class SubFloat3NodeEngine extends MacroNodeEngineNode {
+  protected _execute(): void {
+    this._outputValues.value = [this._inputValues.a[0] - this._inputValues.b[0], this._inputValues.a[1] - this._inputValues.b[1], this._inputValues.a[2] - this._inputValues.b[2]];
+  }
+}
+
 export class GetPositionNodeEngine extends MacroNodeEngineNode {
   protected _execute(): void {
-    this._outputValues.position = this._decorator.getObjectPosition(this._inputValues.objectIndex);
+    this._outputValues.value = this._decorator.getObjectPosition(this._inputValues.objectIndex);
   }
 }
 
@@ -132,7 +145,7 @@ export class SetPositionNodeEngine extends MacroNodeEngineNode {
 
 export class GetRotationNodeEngine extends MacroNodeEngineNode {
   protected _execute(): void {
-    this._outputValues.rotation = this._decorator.getObjectRotation(this._inputValues.objectIndex);
+    this._outputValues.value = this._decorator.getObjectRotation(this._inputValues.objectIndex);
   }
 }
 
@@ -144,7 +157,7 @@ export class SetRotationNodeEngine extends MacroNodeEngineNode {
 
 export class GetScaleNodeEngine extends MacroNodeEngineNode {
   protected _execute(): void {
-    this._outputValues.scale = this._decorator.getObjectScale(this._inputValues.objectIndex);
+    this._outputValues.value = this._decorator.getObjectScale(this._inputValues.objectIndex);
   }
 }
 
