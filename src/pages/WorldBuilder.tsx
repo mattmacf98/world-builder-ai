@@ -85,8 +85,8 @@ import { base64StringToBlob } from 'blob-util';
     const [searchParams] = useSearchParams();
     const worldId = searchParams.get('worldId');
     const [macroScreen, setMacroScreen] = useState(false);
+    const [uploadScreen, setUploadScreen] = useState(false);
     const [controlPanelOpen, setControlPanelOpen] = useState(false);
-    const [uploading, setUploading] = useState(false);
     const macros = useQuery(api.macro.getMacros);
     const aiChatRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -130,9 +130,7 @@ import { base64StringToBlob } from 'blob-util';
         }
       }, 100);
     });
-  
-    const createWorld = useMutation(api.world.createWorld);
-    const generateUploadUrl = useMutation(api.world.generateUploadUrl);
+
     const loadedWorld = useQuery(api.world.getWorld, worldId ? { id: worldId as Id<'worlds'> } : "skip");
   
     useEffect(() => {
@@ -300,56 +298,6 @@ import { base64StringToBlob } from 'blob-util';
       macroEngine.execute();
     }
   
-    const handleUploadGLTFX = async () => {
-      setUploading(true);
-
-      const screenshotData = await Tools.CreateScreenshotAsync(engineRef.current!, cameraRef.current!, 1024);
-
-      const imageUploadUrl = await generateUploadUrl();
-      const imageBlob = base64StringToBlob(screenshotData.replace("data:image/png;base64,", ""), "image/png");
-      const imageResponse = await fetch(imageUploadUrl, {
-        method: "POST",
-        headers: { "Content-Type": imageBlob.type },
-        body: imageBlob,
-      });
-  
-      const imageResult = await imageResponse.json();
-      const thumbnailStorageId = imageResult.storageId;
-
-      const uploadUrl = await generateUploadUrl();
-      const gltfx = worldBuilder.current?.getGlTFX();
-      const blob = new Blob([JSON.stringify(gltfx, null, 2)], { type: 'application/json' });
-      const result = await fetch(uploadUrl, {
-        method: "POST",
-        headers: { "Content-Type": blob.type },
-        body: blob,
-      });
-  
-      const response = await result.json();
-      const glTFXStorageId = response.storageId;
-  
-      const assetUriToStorageIds = [];
-      for (const asset of gltfx?.assets ?? []) {
-        if (asset.uri) {
-          const file = glbFiles.current.find(file => file.name === asset.uri);
-          if (file) {
-            const uploadUrl = await generateUploadUrl();
-            const blob = new Blob([file], { type: "model/gltf-binary" });
-            const result = await fetch(uploadUrl, {
-              method: "POST",
-              headers: { "Content-Type": "model/gltf-binary" },
-              body: blob,
-            });
-            const response = await result.json();
-            const assetStorageId = response.storageId;
-            assetUriToStorageIds.push({ uri: asset.uri, storageId: assetStorageId });
-          }
-        }
-      }
-      await createWorld({ name: "test", glTFXStorageId, thumbnailStorageId, assetUriToStorageIds });
-      setUploading(false);
-    };
-  
     const handleLoadGLBModel = async (file: File) => {
       if (worldBuilder.current) {
         glbFiles.current.push(file);
@@ -357,10 +305,6 @@ import { base64StringToBlob } from 'blob-util';
         triggerRerender();
       }
     };
-
-    const showMacroScreen = () => {
-      setMacroScreen(true);
-    }
   
     return (
       <Container fluid className="p-0" style={{ height: '95vh' }}>
@@ -495,28 +439,114 @@ import { base64StringToBlob } from 'blob-util';
           </div>
 
           <div style={{padding: 8, display: "flex", flexDirection: "column", alignItems: "center"}}>
-            <Button onClick={handleUploadGLTFX} style={{width: 256, margin: 8}} disabled={uploading}>
-              Upload GLTFX
-              {uploading && <Spinner animation="border" size="sm" />}
+            <Button onClick={() => setUploadScreen(true)} style={{width: 256, margin: 8}}>
+              Upload World
             </Button>
-            <Button onClick={showMacroScreen} style={{width: 256, margin: 8}}>Macro</Button>
+            <Button onClick={() => setMacroScreen(true)} style={{width: 256, margin: 8}}>Macro</Button>
           </div>
         </div>
 
+        <MacroScreen worldBuilder={worldBuilder} close={() => setMacroScreen(false)} shouldShow={macroScreen} />
 
-        <Modal show={macroScreen} onHide={() => setMacroScreen(false)}>
-          <Modal.Header closeButton>
-            <Modal.Title>Macro</Modal.Title>
-          </Modal.Header>
-          <Modal.Body>
-            <MacroScreen worldBuilder={worldBuilder} />
-          </Modal.Body>
-        </Modal>
+        <UploadScreen shouldShow={uploadScreen} close={() => setUploadScreen(false)} glbFiles={glbFiles} 
+          cameraRef={cameraRef} engineRef={engineRef} worldBuilder={worldBuilder} />
+        
       </Container>
     )
   }
 
-  const MacroScreen = ({worldBuilder}: {worldBuilder: MutableRefObject<WorldBuilder | null>}) => {
+  interface IUploadScreenProps {
+    shouldShow: boolean;
+    close: () => void;
+    glbFiles: MutableRefObject<File[]>;
+    cameraRef: MutableRefObject<FreeCamera | null>;
+    engineRef: MutableRefObject<Engine | null>;
+    worldBuilder: MutableRefObject<WorldBuilder | null>;
+  }
+  const UploadScreen = (props: IUploadScreenProps) => {
+    const [name, setName] = useState("");
+    const [uploading, setUploading] = useState(false);
+
+    const createWorld = useMutation(api.world.createWorld);
+    const generateUploadUrl = useMutation(api.world.generateUploadUrl);
+
+    const handleUploadGLTFX = async () => {
+      setUploading(true);
+
+      const screenshotData = await Tools.CreateScreenshotAsync(props.engineRef.current!, props.cameraRef.current!, 1024);
+
+      const imageUploadUrl = await generateUploadUrl();
+      const imageBlob = base64StringToBlob(screenshotData.replace("data:image/png;base64,", ""), "image/png");
+      const imageResponse = await fetch(imageUploadUrl, {
+        method: "POST",
+        headers: { "Content-Type": imageBlob.type },
+        body: imageBlob,
+      });
+  
+      const imageResult = await imageResponse.json();
+      const thumbnailStorageId = imageResult.storageId;
+
+      const uploadUrl = await generateUploadUrl();
+      const gltfx = props.worldBuilder.current?.getGlTFX();
+      const blob = new Blob([JSON.stringify(gltfx, null, 2)], { type: 'application/json' });
+      const result = await fetch(uploadUrl, {
+        method: "POST",
+        headers: { "Content-Type": blob.type },
+        body: blob,
+      });
+  
+      const response = await result.json();
+      const glTFXStorageId = response.storageId;
+  
+      const assetUriToStorageIds = [];
+      for (const asset of gltfx?.assets ?? []) {
+        if (asset.uri) {
+          const file = props.glbFiles.current.find(file => file.name === asset.uri);
+          if (file) {
+            const uploadUrl = await generateUploadUrl();
+            const blob = new Blob([file], { type: "model/gltf-binary" });
+            const result = await fetch(uploadUrl, {
+              method: "POST",
+              headers: { "Content-Type": "model/gltf-binary" },
+              body: blob,
+            });
+            const response = await result.json();
+            const assetStorageId = response.storageId;
+            assetUriToStorageIds.push({ uri: asset.uri, storageId: assetStorageId });
+          }
+        }
+      }
+      await createWorld({ name: name, glTFXStorageId, thumbnailStorageId, assetUriToStorageIds });
+      setUploading(false);
+    };
+
+    return (
+      <Modal show={props.shouldShow} onHide={props.close}>
+        <Modal.Header closeButton>
+          <Modal.Title>Upload</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form.Group className="mb-3">
+            <Form.Label>Name</Form.Label>
+            <Form.Control
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Enter name"
+            />
+          </Form.Group>
+          <Button onClick={handleUploadGLTFX} disabled={uploading}>Upload {uploading && <Spinner animation="border" size="sm" />}</Button>
+        </Modal.Body>
+      </Modal>
+    );
+  }
+
+  interface IMacroScreenProps {
+    worldBuilder: MutableRefObject<WorldBuilder | null>;
+    close: () => void;
+    shouldShow: boolean;
+  }
+  const MacroScreen = (props: IMacroScreenProps) => {
     const [inputValues, setInputValues] = useState<Record<string, any>>({});
     const [macroName, setMacroName] = useState<string | null>("");
     const [macroJson, setMacroJson] = useState<any>(null);
@@ -537,37 +567,42 @@ import { base64StringToBlob } from 'blob-util';
     }, [selectedMacro]);
 
     return (
-      <>
-        <Form.Group className="mb-3">
-          <Form.Label>Macro Name</Form.Label>
-          <Form.Select onChange={(e) => {
-            setMacroJson(null);
-            setMacroName(e.target.value);
-          }}>
-            <option value={""}>Select</option>
-            {macros?.map((macro: any) => (
-              <option key={macro._id} value={macro._id}>{macro.name}</option>
-            ))}
-          </Form.Select>
-          {macroJson && macroJson.inputs.map((input: any) => {
-            return (
-                <div key={input.parameter}>
-                  <Form.Label>{input.parameter} ({input.parameterType})</Form.Label>
-                  <Form.Control
-                    type="text"
-                    value={inputValues[input.parameter] ?? ""}
-                    onChange={(e) => setInputValues({...inputValues, [input.parameter]: e.target.value})}
-                  />
-                </div>
-              )
-            })}
-        </Form.Group>
+      <Modal show={props.shouldShow} onHide={props.close}>
+        <Modal.Header closeButton>
+          <Modal.Title>Macro</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form.Group className="mb-3">
+            <Form.Label>Macro Name</Form.Label>
+            <Form.Select onChange={(e) => {
+              setMacroJson(null);
+              setMacroName(e.target.value);
+            }}>
+              <option value={""}>Select</option>
+              {macros?.map((macro: any) => (
+                <option key={macro._id} value={macro._id}>{macro.name}</option>
+              ))}
+            </Form.Select>
+            {macroJson && macroJson.inputs.map((input: any) => {
+              return (
+                  <div key={input.parameter}>
+                    <Form.Label>{input.parameter} ({input.parameterType})</Form.Label>
+                    <Form.Control
+                      type="text"
+                      value={inputValues[input.parameter] ?? ""}
+                      onChange={(e) => setInputValues({...inputValues, [input.parameter]: e.target.value})}
+                    />
+                  </div>
+                )
+              })}
+          </Form.Group>
 
-        <Button disabled={!macroJson} onClick={() => {
-          const macroEngine = MacroNodeEngine.build(macroJson.nodes, macroJson.inputs, inputValues, new BabylonDecorator(worldBuilder.current!));
-          macroEngine.execute();
-        }}>Run</Button>
-      </>
+          <Button disabled={!macroJson} onClick={() => {
+            const macroEngine = MacroNodeEngine.build(macroJson.nodes, macroJson.inputs, inputValues, new BabylonDecorator(props.worldBuilder.current!));
+            macroEngine.execute();
+          }}>Run</Button>
+        </Modal.Body>
+      </Modal>
     )
   }
 
