@@ -13,7 +13,7 @@ import 'reactflow/dist/style.css';
 import { MacroNodeType, ValueType, NODE_TYPE_MAP, IValueSocket } from '../macroEngine/MacroNodes';
 import { CustomNode } from '../macroEngine/CustomNode';
 import { api } from '../../convex/_generated/api';
-import { useMutation } from 'convex/react';
+import { useMutation, useQuery } from 'convex/react';
 
 const nodeTypes = {
   custom: CustomNode,
@@ -26,14 +26,16 @@ export default function Macros() {
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [inputs, setInputs] = useState<{id: string, type: string}[]>([]);
   const [showMacroUploadModal, setShowMacroUploadModal] = useState(false);
+  const [showLoadMacroModal, setShowLoadMacroModal] = useState(false);
   const [macroName, setMacroName] = useState('');
   const [activationPhrase, setActivationPhrase] = useState('');
   const [activationPhrases, setActivationPhrases] = useState<string[]>([]);
   const [inputValues, setInputValues] = useState<{[key: string]: {[key: string]: string}}>({});
-  const [contextClick, setContextClick] = useState<{x: number, y: number} | null>(null);
+  const [contextClick, setContextClick] = useState<{x: number, y: number} | null>(null)
 
   const createMacro = useMutation(api.macro.createMacro);
   const generateUploadUrl = useMutation(api.world.generateUploadUrl);
+  const macros = useQuery(api.macro.getMacros);
 
   useEffect(() => {
     const handleContextMenu = (event: MouseEvent) => {
@@ -127,7 +129,7 @@ export default function Macros() {
     setNodes((nds) => [...nds, {
       id: `${nds.length + 1}`,
       type: 'custom',
-      position: { x: position.x, y:  position.y },
+      position: { x: position?.x || 0, y:  position?.y || 0 },
       data: {...JSON.parse(JSON.stringify(NODE_TYPE_MAP["Input"])), inputParameter: {id: parameter, type: parameterType}}
     }]);
   }
@@ -136,9 +138,17 @@ export default function Macros() {
     setNodes((nds) => [...nds, {
       id: `${nds.length + 1}`,
       type: 'custom',
-      position: { x: position.x, y:  position.y },
+      position: { x: position?.x || 0, y:  position?.y || 0},
       data: {...JSON.parse(JSON.stringify(NODE_TYPE_MAP[nodeType])), inlineInputValues: inlineInputValues}
     }]);
+  }
+
+  const loadMacro = async (macroUrl: string) => {
+    setNodes([]);
+    setEdges([]);
+    const response = await fetch(macroUrl);
+    const json = await response.json();
+    loadFromJson(json);
   }
 
   const loadFromJson = (json: any) => { 
@@ -252,12 +262,37 @@ export default function Macros() {
             <Button style={{position: "absolute", right: 32, bottom: 32, cursor: "pointer", zIndex: 999}} onClick={() => setShowMacroUploadModal(true)}>
               Create
             </Button>
+            <Button style={{position: "absolute", right: 128, bottom: 32, cursor: "pointer", zIndex: 999}} onClick={() => setShowLoadMacroModal(true)}>
+              Load Macro
+            </Button>
           </ReactFlow>
         </div>
 
         {
           contextClick && <AddMacroOverlay x={contextClick.x} y={contextClick.y} close={() => setContextClick(null)} addNode={addNode} />
         }
+
+        <Modal show={showLoadMacroModal} onHide={() => setShowLoadMacroModal(false)}>
+          <Modal.Header closeButton>
+            <Modal.Title>Load Macro</Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            <div style={{overflowY: "auto"}}>
+              {macros && macros.map((macro) => {
+                return (
+                  <ListGroup.Item key={macro._id} style={{ cursor: 'pointer' }} onClick={() => loadMacro(macro.macroUrl!)}>
+                    {macro.name}
+                  </ListGroup.Item>
+                )
+              })}
+            </div>
+          </Modal.Body>
+          <Modal.Footer>
+            <Button variant="primary">
+              Load Macro
+            </Button>
+          </Modal.Footer>
+        </Modal>
 
         <Modal show={showMacroUploadModal} onHide={() => setShowMacroUploadModal(false)}>
           <Modal.Header closeButton>
