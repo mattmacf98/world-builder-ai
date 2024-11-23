@@ -9,6 +9,7 @@ import {
   StandardMaterial,
   Color3,
   HemisphericLight,
+  Tools,
 } from '@babylonjs/core';
 import "@babylonjs/loaders/glTF";
 import { MutableRefObject, useEffect, useRef, useState, useCallback } from 'react';
@@ -26,6 +27,7 @@ import { ObjectType, WorldBuilder } from '../WorldBuilder';
 import { MacroNodeEngine } from '../macroEngine/Engine';
 import { BabylonDecorator } from '../macroEngine/Decorator';
 import { FaMicrophone } from "react-icons/fa";
+import { base64StringToBlob } from 'blob-util';
   
   GLTFXLoader.RegisterExtension("WRLD_parametrized_asset", (loader) => {
     return new WRLD_parametrized_asset(loader);
@@ -74,7 +76,9 @@ import { FaMicrophone } from "react-icons/fa";
   const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
   
   const WorldBuilderPage = () => {
-    const canvasRef = useRef(null);
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const cameraRef = useRef<FreeCamera | null>(null);
+    const engineRef = useRef<Engine | null>(null);
     const worldBuilder = useRef<WorldBuilder | null>(null);
     const glbFiles = useRef<File[]>([]);
     const [_forceUpdate, setForceUpdate] = useState(0);
@@ -82,6 +86,7 @@ import { FaMicrophone } from "react-icons/fa";
     const worldId = searchParams.get('worldId');
     const [macroScreen, setMacroScreen] = useState(false);
     const [controlPanelOpen, setControlPanelOpen] = useState(false);
+    const [uploading, setUploading] = useState(false);
     const macros = useQuery(api.macro.getMacros);
     const aiChatRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -132,13 +137,13 @@ import { FaMicrophone } from "react-icons/fa";
   
     useEffect(() => {
       if (canvasRef.current) {
-        const engine = new Engine(canvasRef.current, true);
-        const scene = new Scene(engine);
+        engineRef.current = new Engine(canvasRef.current, true);
+        const scene = new Scene(engineRef.current);
   
         // Create a camera
-        const camera = new FreeCamera('camera1', new Vector3(0, 5, -10), scene);
-        camera.setTarget(new Vector3(0, 2, 0));
-        camera.attachControl(canvasRef.current, true);
+        cameraRef.current = new FreeCamera('camera1', new Vector3(0, 5, -10), scene);
+        cameraRef.current.setTarget(new Vector3(0, 2, 0));
+        cameraRef.current.attachControl(canvasRef.current, true);
 
 
         // Load an IBL (Image-Based Lighting) environment texture
@@ -171,13 +176,13 @@ import { FaMicrophone } from "react-icons/fa";
         scene.onKeyboardObservable.add(handleKeyboard);
   
         // Render loop
-        engine.runRenderLoop(() => {
+        engineRef.current.runRenderLoop(() => {
           scene.render();
         });
   
         // Handle window resize
         window.addEventListener('resize', () => {
-          engine.resize();
+          engineRef.current?.resize();
         });
   
         initializeAI();
@@ -186,7 +191,7 @@ import { FaMicrophone } from "react-icons/fa";
         // Cleanup
         return () => {
           scene.dispose();
-          engine.dispose();
+          engineRef.current?.dispose();
         };
       }
     }, []);
@@ -296,6 +301,21 @@ import { FaMicrophone } from "react-icons/fa";
     }
   
     const handleUploadGLTFX = async () => {
+      setUploading(true);
+
+      const screenshotData = await Tools.CreateScreenshotAsync(engineRef.current!, cameraRef.current!, 1024);
+
+      const imageUploadUrl = await generateUploadUrl();
+      const imageBlob = base64StringToBlob(screenshotData.replace("data:image/png;base64,", ""), "image/png");
+      const imageResponse = await fetch(imageUploadUrl, {
+        method: "POST",
+        headers: { "Content-Type": imageBlob.type },
+        body: imageBlob,
+      });
+  
+      const imageResult = await imageResponse.json();
+      const thumbnailStorageId = imageResult.storageId;
+
       const uploadUrl = await generateUploadUrl();
       const gltfx = worldBuilder.current?.getGlTFX();
       const blob = new Blob([JSON.stringify(gltfx, null, 2)], { type: 'application/json' });
@@ -326,7 +346,8 @@ import { FaMicrophone } from "react-icons/fa";
           }
         }
       }
-      await createWorld({ name: "test", glTFXStorageId, assetUriToStorageIds });
+      await createWorld({ name: "test", glTFXStorageId, thumbnailStorageId, assetUriToStorageIds });
+      setUploading(false);
     };
   
     const handleLoadGLBModel = async (file: File) => {
@@ -474,7 +495,10 @@ import { FaMicrophone } from "react-icons/fa";
           </div>
 
           <div style={{padding: 8, display: "flex", flexDirection: "column", alignItems: "center"}}>
-            <Button onClick={handleUploadGLTFX} style={{width: 256, margin: 8}}>Upload GLTFX</Button>
+            <Button onClick={handleUploadGLTFX} style={{width: 256, margin: 8}} disabled={uploading}>
+              Upload GLTFX
+              {uploading && <Spinner animation="border" size="sm" />}
+            </Button>
             <Button onClick={showMacroScreen} style={{width: 256, margin: 8}}>Macro</Button>
           </div>
         </div>

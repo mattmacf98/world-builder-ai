@@ -1,6 +1,5 @@
 # TODO
-- be able to load macros from json
-- images when save world
+- name worlds
 - multiple macros
 - refactor code
 - switch to transformers js for speech to text

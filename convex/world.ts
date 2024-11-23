@@ -5,9 +5,10 @@ export const generateUploadUrl = mutation(async (ctx) => {
     return await ctx.storage.generateUploadUrl();
 });
 
-export const createWorld = mutation(async (ctx, { name, glTFXStorageId, assetUriToStorageIds }: { name: string, glTFXStorageId: string, assetUriToStorageIds: { uri: string, storageId: string }[] }) => {
+export const createWorld = mutation(async (ctx, { name, glTFXStorageId, thumbnailStorageId, assetUriToStorageIds }: { name: string, glTFXStorageId: string, thumbnailStorageId: string, assetUriToStorageIds: { uri: string, storageId: string }[] }) => {
     return await ctx.db.insert("worlds", { 
         name, 
+        thumbnailStorageId,
         glTFXStorageId, 
         assetUriToStorageIds,
         createdAt: Date.now() 
@@ -18,6 +19,7 @@ export const getWorld = query(async (ctx, { id }: { id: Id<"worlds"> }) => {
     const world = await ctx.db.get(id);
     if (world) {
         world.glTFXUrl = (await ctx.storage.getUrl(world.glTFXStorageId))!;
+        world.thumbnailUrl = (await ctx.storage.getUrl(world.thumbnailStorageId))!;
         const assetUriToUrls = [];
         for (const assetUriToStorageId of world.assetUriToStorageIds) {
             const url = await ctx.storage.getUrl(assetUriToStorageId.storageId);
@@ -29,5 +31,9 @@ export const getWorld = query(async (ctx, { id }: { id: Id<"worlds"> }) => {
 });
 
 export const getWorlds = query(async (ctx) => {
-    return await ctx.db.query("worlds").collect();
+    const worlds = await ctx.db.query("worlds").collect();
+    for (const world of worlds) {
+        world.thumbnailUrl = (await ctx.storage.getUrl(world.thumbnailStorageId))!;
+    }
+    return worlds;
 });

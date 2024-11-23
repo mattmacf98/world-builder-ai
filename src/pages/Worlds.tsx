@@ -1,10 +1,11 @@
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { Row, Card, Col, Container } from "react-bootstrap";
+import { Row, Card, Col, Container, Image } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 
 export default function Worlds() {
     const worlds = useQuery(api.world.getWorlds);
+    console.log(worlds);
     const navigate = useNavigate();
     return (
         <Container>
@@ -18,6 +19,13 @@ export default function Worlds() {
                         >
                             <Card.Body>
                                 <Card.Title>{world.name}</Card.Title>
+                                <Image 
+                                    height={256} 
+                                    src={world.thumbnailUrl} 
+                                    rounded 
+                                    fluid 
+                                    style={{ objectFit: 'cover', width: '100%', height: '256px' }}
+                                />
                                 <Card.Text>Created: {new Date(world.createdAt).toLocaleDateString()}</Card.Text>
                             </Card.Body>
                         </Card>

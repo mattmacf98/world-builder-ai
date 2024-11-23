@@ -5,6 +5,8 @@ export default defineSchema({
   worlds: defineTable({
     glTFXStorageId: v.string(),
     glTFXUrl: v.optional(v.string()),
+    thumbnailStorageId: v.string(),
+    thumbnailUrl: v.optional(v.string()),
     assetUriToStorageIds: v.array(v.object({
       uri: v.string(),
       storageId: v.string(),
