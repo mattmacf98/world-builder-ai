@@ -36,10 +36,6 @@ export default function Macros() {
   const generateUploadUrl = useMutation(api.world.generateUploadUrl);
 
   useEffect(() => {
-    loadFromJson(JSON.parse(macroJson));
-  }, []);
-
-  useEffect(() => {
     const handleContextMenu = (event: MouseEvent) => {
       event.preventDefault();
       setContextClick({ x: event.clientX, y: event.clientY });
