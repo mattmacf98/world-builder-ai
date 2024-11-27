@@ -1,4 +1,4 @@
-import { WorldBuilder } from "../WorldBuilder";
+import { ObjectType, WorldBuilder } from "../WorldBuilder";
 
 export interface IEngineActionDecorator {
     setObjectPosition(objectIndex: number, position: [number, number, number]): void;
@@ -8,6 +8,8 @@ export interface IEngineActionDecorator {
     getObjectScale(objectIndex: number): [number, number, number];
     getObjectRotation(objectIndex: number): [number, number, number, number];
     getObjectBoundingBox(objectIndex: number): { max: [number, number, number], min: [number, number, number] };
+    addBox(): number;
+    addSphere(): number;
 }
 
 export class BabylonDecorator implements IEngineActionDecorator {
@@ -62,5 +64,13 @@ export class BabylonDecorator implements IEngineActionDecorator {
             max: [boundingBox.maximum.x, boundingBox.maximum.y, boundingBox.maximum.z],
             min: [boundingBox.minimum.x, boundingBox.minimum.y, boundingBox.minimum.z]
         };
+    }
+
+    addBox(): number {
+        return this._worldBuilder.addObject(ObjectType.Box);
+    }
+
+    addSphere(): number {
+        return this._worldBuilder.addObject(ObjectType.Sphere);
     }
 }

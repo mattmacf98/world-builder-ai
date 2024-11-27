@@ -197,6 +197,22 @@ export const GetBoundingBoxNode: IMacroNodeData = {
     inputValues: [{id: 'objectIndex', type: ValueType.INT}],
     inlineInputValues: [],
   }
+
+export const AddBoxNode: IMacroNodeData = {
+    label: 'AddBox',
+    type: MacroNodeType.ACTION,
+    outputValues: [{ id: 'objectIndex', type: ValueType.INT }],
+    inputValues: [],
+    inlineInputValues: [],
+}
+
+export const AddSphereNode: IMacroNodeData = {
+    label: 'AddSphere',
+    type: MacroNodeType.ACTION,
+    outputValues: [{ id: 'objectIndex', type: ValueType.INT }],
+    inputValues: [],
+    inlineInputValues: [],
+}
   
 export const NODE_TYPE_MAP: Record<string, IMacroNodeData> = {
     'Start': StartNode,
@@ -220,4 +236,6 @@ export const NODE_TYPE_MAP: Record<string, IMacroNodeData> = {
     'DivideFloat3': DivideFloat3Node,
     'MultiplyFloat3': MultiplyFloat3Node,
     'Input': InputNode,
+    'AddBox': AddBoxNode,
+    'AddSphere': AddSphereNode,
   };

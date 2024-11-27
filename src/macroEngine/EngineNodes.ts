@@ -174,3 +174,15 @@ export class GetBoundingBoxNodeEngine extends MacroNodeEngineNode {
     this._outputValues.min = min;
   }
 }
+
+export class AddBoxNodeEngine extends MacroNodeEngineNode {
+  protected _execute(): void {
+    this._outputValues.objectIndex = this._decorator.addBox();
+  }
+}
+
+export class AddSphereNodeEngine extends MacroNodeEngineNode {
+  protected _execute(): void {
+    this._outputValues.objectIndex = this._decorator.addSphere();
+  }
+}

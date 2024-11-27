@@ -274,7 +274,7 @@ export class WorldBuilder {
       }
     }
   
-    addObject(type: ObjectType) {
+    addObject(type: ObjectType): number {
       switch (type) {
         case ObjectType.Box:
           const box = MeshBuilder.CreateBox('box', { size: 1 }, this._scene);
@@ -293,5 +293,7 @@ export class WorldBuilder {
           this._worldExtensionsRequired.add("WRLD_parametrized_asset");
           break;
       }
+
+      return this._worldNodes.length - 1;
     }
   }

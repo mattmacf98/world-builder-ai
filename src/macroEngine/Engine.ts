@@ -1,5 +1,5 @@
 import { IEngineActionDecorator } from "./Decorator";
-import { IEngineNode, StartNodeEngine, Float3NodeEngine, SetPositionNodeEngine, IEngineInput, MacroNodeEngineNode, SetScaleNodeEngine, SetRotationNodeEngine, IntNodeEngine, FloatNodeEngine, Float4NodeEngine, AddIntNodeEngine, ConstructFloat3NodeEngine, DestructFloat3NodeEngine, DivideFloat3NodeEngine, GetBoundingBoxNodeEngine, GetPositionNodeEngine, GetRotationNodeEngine, GetScaleNodeEngine, MultiplyFloat3NodeEngine, SubIntNodeEngine, AddFloat3NodeEngine, SubFloat3NodeEngine } from "./EngineNodes";
+import { IEngineNode, StartNodeEngine, Float3NodeEngine, SetPositionNodeEngine, IEngineInput, MacroNodeEngineNode, SetScaleNodeEngine, SetRotationNodeEngine, IntNodeEngine, FloatNodeEngine, Float4NodeEngine, AddIntNodeEngine, ConstructFloat3NodeEngine, DestructFloat3NodeEngine, DivideFloat3NodeEngine, GetBoundingBoxNodeEngine, GetPositionNodeEngine, GetRotationNodeEngine, GetScaleNodeEngine, MultiplyFloat3NodeEngine, SubIntNodeEngine, AddFloat3NodeEngine, SubFloat3NodeEngine, AddBoxNodeEngine, AddSphereNodeEngine } from "./EngineNodes";
 import { IValueSocket, ValueType } from "./MacroNodes";
 
 const NODE_ENGINE_MAP: Record<string, new (node: IEngineNode, engine: MacroNodeEngine, decorator: IEngineActionDecorator) => MacroNodeEngineNode> = {
@@ -23,9 +23,11 @@ const NODE_ENGINE_MAP: Record<string, new (node: IEngineNode, engine: MacroNodeE
     'SetScale': SetScaleNodeEngine,
     'SetRotation': SetRotationNodeEngine,
     'GetBoundingBox': GetBoundingBoxNodeEngine,
+    'AddBox': AddBoxNodeEngine,
+    'AddSphere': AddSphereNodeEngine
   }
 
-const ACTION_NODE_TYPES = ['SetPosition', 'SetScale', 'SetRotation', 'Start'];
+const ACTION_NODE_TYPES = ['SetPosition', 'SetScale', 'SetRotation', 'Start', 'AddBox', 'AddSphere'];
 const GETTER_NODE_TYPES = ['Int','Float','Float3', 'Float4', 'GetPosition', 'GetScale', 'GetRotation', 'GetBoundingBox', 
   'ConstructFloat3', 'DestructFloat3', 'AddInt', 'SubInt', 'DivideFloat3', 'MultiplyFloat3', 'AddFloat3', 'SubFloat3'
 ];
