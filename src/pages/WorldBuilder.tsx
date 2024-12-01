@@ -195,22 +195,28 @@ import { FeatureExtractionPipeline, pipeline } from '@huggingface/transformers';
 
     const constructPrompt = (vectors: IVectorStoreEntry[]) => {
       const contextInstructions: string[] = [];
+      const actionNames: string[] = [];
       for (const vector of vectors) {
         if (vector.macroId !== undefined) {
           const relevantMacro = macros!.find(macro => macro._id === vector.macroId);
           const userPart = relevantMacro!.activationPhrases[0];
           const aiPart = `{"${relevantMacro!.name}":${relevantMacro!.actions[0]}}`;
           contextInstructions.push(`User: ${userPart}\nAI: ${aiPart}`);
+          actionNames.push(relevantMacro!.name);
         } else if (vector.builtInId !== undefined) {
           const action = builtInActions[vector.builtInId];
           contextInstructions.push(`User: ${action.phrase}\nAI: ${action.action}`);
+          actionNames.push(action.name);
         }
       }
 
+
       let prompt = `
-        you have the ability to create json objects correpsonding to user requets
+        you have the ability to create json objects correpsonding to user requests
+
+        YOU MUST ONLY USE THE FOLLOWING ACTIONS: ${actionNames.join(", ")} DO NOT USE ANY OTHER ACTIONS
   
-        here are some examples
+        here are some examples of how to use the actions
       `
 
       for (const instruction of contextInstructions) {
@@ -218,6 +224,8 @@ import { FeatureExtractionPipeline, pipeline } from '@huggingface/transformers';
       }
   
       prompt += `\nNow respond to the following user request\n`;
+
+      console.log(prompt);
       return prompt;
     }
 
