@@ -1,20 +1,18 @@
-import { 
-  Engine, 
-  Scene, 
-  FreeCamera, 
-  Vector3, 
-  KeyboardInfo,
-  CubeTexture,
-  MeshBuilder,
-  StandardMaterial,
-  Color3,
-  HemisphericLight,
-  Tools,
-} from '@babylonjs/core';
+import { Engine } from '@babylonjs/core/Engines/engine';
+import { Scene } from '@babylonjs/core/scene';
+import { FreeCamera } from '@babylonjs/core/Cameras/freeCamera';
+import { Vector3 } from '@babylonjs/core/Maths/math.vector';
+import { KeyboardInfo } from '@babylonjs/core/Events/keyboardEvents';
+import { CubeTexture } from '@babylonjs/core/Materials/Textures/cubeTexture';
+import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
+import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
+import { Color3 } from '@babylonjs/core/Maths/math.color';
+import { HemisphericLight } from '@babylonjs/core/Lights/hemisphericLight';
+import { Tools } from '@babylonjs/core/Misc/tools';
 import "@babylonjs/loaders/glTF";
-import { MutableRefObject, useEffect, useRef, useState, useCallback } from 'react';
+import { MutableRefObject, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Container, Row, Col, Form, Spinner, Button, Modal } from 'react-bootstrap';
+import { Container, Form, Spinner, Button, Modal } from 'react-bootstrap';
 import { IReferencedAsset } from '../glTFx/IGLTFX';
 import { GLTFXLoader } from '../glTFx/glTFXLoader';
 import { WRLD_parametrized_asset } from '../glTFx/extensions/WRLD_parametrized_asset';
@@ -127,8 +125,6 @@ import { FeatureExtractionPipeline, pipeline } from '@huggingface/transformers';
       action: `{"delete": {}}`
     }
   ]
-  
-  const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
   const cosineSimilarity = (a: number[], b: number[]) => {
     const dotProduct = a.reduce((acc, curr, i) => acc + curr * b[i], 0);

@@ -1,8 +1,12 @@
-import { AbstractMesh, Color3, PBRMaterial, PointerEventTypes, Quaternion, SceneLoader } from "@babylonjs/core";
-import { GizmoManager, Scene, MeshBuilder } from "@babylonjs/core";
+import { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
+import { PointerEventTypes } from "@babylonjs/core/Events/pointerEvents";
+import { Quaternion } from "@babylonjs/core/Maths/math.vector";
+import { SceneLoader } from "@babylonjs/core/Loading/sceneLoader";
+import { GizmoManager } from "@babylonjs/core/Gizmos/gizmoManager";
+import { Scene } from "@babylonjs/core/scene";
+import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import { IGLTFX, IReferencedAsset, INode } from "./glTFx/IGLTFX";
 import { GLTFXLoader } from "./glTFx/glTFXLoader";
-import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 
 export enum ObjectType { 
     Sphere = 'sphere',

@@ -1,12 +1,13 @@
-import {
-    AssetContainer,
-    IFileRequest, ISceneLoaderAsyncResult, ISceneLoaderPlugin,
-    ISceneLoaderPluginAsync,
-    ISceneLoaderPluginExtensions,
-    ISceneLoaderPluginFactory, ISceneLoaderProgressEvent, LoadFileError,
-    Nullable, Quaternion,
-    Scene, SceneLoader, TransformNode, Vector3, WebRequest
-} from "@babylonjs/core";
+import { AssetContainer } from "@babylonjs/core/assetContainer";
+import { ISceneLoaderAsyncResult, ISceneLoaderPlugin, ISceneLoaderPluginAsync, ISceneLoaderPluginExtensions, ISceneLoaderPluginFactory, ISceneLoaderProgressEvent } from "@babylonjs/core/Loading";
+import { Nullable } from "@babylonjs/core/types";
+import { Quaternion, Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { Scene } from "@babylonjs/core/scene";
+import { SceneLoader } from "@babylonjs/core/Loading/sceneLoader";
+import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
+import { WebRequest } from "@babylonjs/core/Misc/webRequest";
+import { IFileRequest } from "@babylonjs/core/Misc/fileRequest";
+
 import {IGLTFX, INode, IProperty, IReferencedAsset} from "./IGLTFX";
 
 export interface IGLTFXLoaderExtension {
@@ -71,15 +72,15 @@ export class GLTFXLoader implements ISceneLoaderPluginAsync, ISceneLoaderPluginF
     }
 
 
-    importMeshAsync(meshesNames: any, scene: Scene, data: any, rootUrl: string, onProgress?: (event: ISceneLoaderProgressEvent) => void, fileName?: string): Promise<ISceneLoaderAsyncResult> {
+    importMeshAsync(_meshesNames: any, _scene: Scene, _data: any, _rootUrl: string, _onProgress?: (event: ISceneLoaderProgressEvent) => void, _fileName?: string): Promise<ISceneLoaderAsyncResult> {
         throw new Error("importMeshAsync not implemented for gltfx Splatting loading");
     }
 
-    loadAssetContainerAsync(scene: Scene, data: any, rootUrl: string, onProgress?: (event: ISceneLoaderProgressEvent) => void, fileName?: string): Promise<AssetContainer> {
+    loadAssetContainerAsync(_scene: Scene, _data: any, _rootUrl: string, _onProgress?: (event: ISceneLoaderProgressEvent) => void, _fileName?: string): Promise<AssetContainer> {
         throw new Error("loadAssetContainerAsync not implemented for gltfx Splatting loading");
     }
 
-    loadAsync(scene: Scene, data: any, rootUrl: string, onProgress?: (event: ISceneLoaderProgressEvent) => void, fileName?: string): Promise<void> {
+    loadAsync(scene: Scene, data: any, _rootUrl: string, _onProgress?: (event: ISceneLoaderProgressEvent) => void, _fileName?: string): Promise<void> {
         this._babylonScene = scene;
         this._gltfx = data as IGLTFX;
         this._setupData();
@@ -87,7 +88,7 @@ export class GLTFXLoader implements ISceneLoaderPluginAsync, ISceneLoaderPluginF
         return this._loadAsync();
     }
 
-    loadFile(scene: Scene, fileOrUrl: File | string | ArrayBufferView, rootUrl: string, onSuccess: (data: any, responseURL?: string) => void, onProgress?: (ev: ISceneLoaderProgressEvent) => void, useArrayBuffer?: boolean, onError?: (request?: WebRequest, exception?: LoadFileError) => void, name?: string): Nullable<IFileRequest> {
+    loadFile(scene: Scene, _fileOrUrl: File | string | ArrayBufferView, _rootUrl: string, _onSuccess: (data: any, responseURL?: string) => void, _onProgress?: (ev: ISceneLoaderProgressEvent) => void, _useArrayBuffer?: boolean, _onError?: (request?: WebRequest, exception?: any) => void, _name?: string): Nullable<IFileRequest> {
         this._babylonScene = scene;
 
         return null;
@@ -237,7 +238,7 @@ export class GLTFXLoader implements ISceneLoaderPluginAsync, ISceneLoaderPluginF
         }
     }
 
-    private _applyExtensions<T>(property: IProperty, functionName: string, actionAsync: (extension: IGLTFXLoaderExtension) => Nullable<T> | undefined): Nullable<T> {
+    private _applyExtensions<T>(_property: IProperty, _functionName: string, actionAsync: (extension: IGLTFXLoaderExtension) => Nullable<T> | undefined): Nullable<T> {
         for (const extension of this._extensions) {
             if (extension.enabled) {
                 const result = actionAsync(extension);
