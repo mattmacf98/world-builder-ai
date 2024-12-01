@@ -174,7 +174,6 @@ export class WorldBuilder {
     }
 
     getMesh(index: number) {
-      console.log(this._worldAssets[this._worldNodes[index].asset!].mesh!);
       return this._worldAssets[this._worldNodes[index].asset!].mesh!;
     }
   

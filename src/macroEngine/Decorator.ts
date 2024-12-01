@@ -20,7 +20,6 @@ export class BabylonDecorator implements IEngineActionDecorator {
     }
 
     setObjectPosition(objectIndex: number, position: [number, number, number]): void {
-        console.log(`Set object ${objectIndex} position to ${position}`);
         this._worldBuilder.selectMesh(objectIndex);
         this._worldBuilder.setTranslateX(position[0]);
         this._worldBuilder.setTranslateY(position[1]);
@@ -28,13 +27,11 @@ export class BabylonDecorator implements IEngineActionDecorator {
     }
 
     setObjectRotation(objectIndex: number, rotation: [number, number, number, number]): void {
-        console.log(`Set object ${objectIndex} rotation to ${rotation}`);
         this._worldBuilder.selectMesh(objectIndex);
         this._worldBuilder.setRotation(rotation);
     }
 
     setObjectScale(objectIndex: number, scale: [number, number, number]): void {
-        console.log(`Set object ${objectIndex} scale to ${scale}`);
         this._worldBuilder.selectMesh(objectIndex);
         this._worldBuilder.setScaleX(scale[0]);
         this._worldBuilder.setScaleY(scale[1]);

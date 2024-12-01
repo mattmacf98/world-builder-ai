@@ -28,52 +28,120 @@ import { MacroNodeEngine } from '../macroEngine/Engine';
 import { BabylonDecorator } from '../macroEngine/Decorator';
 import { FaMicrophone } from "react-icons/fa";
 import { base64StringToBlob } from 'blob-util';
+import { FeatureExtractionPipeline, pipeline } from '@huggingface/transformers';
   
   GLTFXLoader.RegisterExtension("WRLD_parametrized_asset", (loader) => {
     return new WRLD_parametrized_asset(loader);
   });
 
-  interface IPrompt {
-    user: string;
-    ai: string;
+  interface IBuiltInAction {
+    name: string;
+    phrase: string;
+    action: string;
   }
-  const constructMacroPrompt = (userPrompts: IPrompt[]) => {
-    let prompt = `
-      you have the ability to create json objects correpsonding to user requets but always start with the phrase alrighty here you go
 
-      here are some examples
-      User: select the first object
-      AI: alrighty here you go {"actions":[{"select":{"index": "0"}}]}
-      
-      User: move the selected object 1 unit to the right
-      AI: alrighty here you go {"actions":[{"translateX":{"amount": "1"}}]}
-      
-      User: move the selected object 20 units up
-      AI: alrighty here you go {"actions":[{"translateY":{"amount": "20"}}]}
-      
-      User: move the selected object 1 unit forward
-      AI: alrighty here you go {"actions":[{"translateZ":{"amount": "1"}}]}
-      
-      User: rotate the selected object 90 degrees on the x axis
-      AI: alrighty here you go {"actions":[{"rotateX":{"amount": "90"}}]}
-      
-      User: scale the selected object to be 2 times smaller in the x direction
-      AI: alrighty here you go {"actions":[{"scaleX":{"amount": "0.5"}}]}
-    
-      User: delete the selected object
-      AI: alrighty here you go {"actions":[{"delete": {}}]}
-  
-    `
-    for (const userPrompt of userPrompts) {
-      prompt += `\nUser: ${userPrompt.user}`;
-      prompt += `\nAI: alrighty here you go ${userPrompt.ai}\n\n`;
+  const builtInActions: IBuiltInAction[] = [
+    {
+      name: "select",
+      phrase: "select object 0",
+      action: `{"select": {"index": 0}}`
+    },
+    {
+      name: "setTranslateX",
+      phrase: "set the selected object's x position to 1",
+      action: `{"setTranslateX": {"amount": 1}}`
+    },
+    {
+      name: "setTranslateY",
+      phrase: "set the selected object's y position to -1",
+      action: `{"setTranslateY": {"amount": -1}}`
+    },
+    {
+      name: "setTranslateZ",
+      phrase: "set the selected object's z position to 5",
+      action: `{"setTranslateZ": {"amount": 5}}`
+    },
+    {
+      name: "translateX",
+      phrase: "move the selected object 1 unit to the right",
+      action: `{"translateX": {"amount": 1}}`
+    },
+    {
+      name: "translateY",
+      phrase: "move the selected object 1 unit up",
+      action: `{"translateY": {"amount": 1}}`
+    },
+    {
+      name: "translateZ",
+      phrase: "move the selected object 1 unit forward",
+      action: `{"translateZ": {"amount": 1}}`
+    },
+    {
+      name: "rotateX",
+      phrase: "rotate the selected object 90 degrees on the x axis",
+      action: `{"rotateX": {"amount": 90}}`
+    },
+    {
+      name: "rotateY",
+      phrase: "rotate the selected object 90 degrees on the y axis",
+      action: `{"rotateY": {"amount": 90}}`
+    },
+    {
+      name: "rotateZ",
+      phrase: "rotate the selected object 90 degrees on the z axis",
+      action: `{"rotateZ": {"amount": 90}}`
+    },
+    {
+      name: "scaleX",
+      phrase: "scale the selected object to be 2 times smaller in the x direction",
+      action: `{"scaleX": {"amount": 0.5}}`
+    },
+    {
+      name: "scaleY",
+      phrase: "scale the selected object to be 2 times larger in the y direction",
+      action: `{"scaleY": {"amount": 2}}`
+    },
+    {
+      name: "scaleZ",
+      phrase: "scale the selected object to be 3 times smaller in the z direction",
+      action: `{"scaleZ": {"amount": 0.33}}`
+    },
+    {
+      name: "setScaleX",
+      phrase: "set the selected object's x scale to 2",
+      action: `{"setScaleX": {"amount": 2}}`
+    },
+    {
+      name: "setScaleY",
+      phrase: "set the selected object's y scale to 0.5",
+      action: `{"setScaleY": {"amount": 0.5}}`
+    },
+    {
+      name: "setScaleZ",
+      phrase: "set the selected object's z scale to -3",
+      action: `{"setScaleZ": {"amount": -3}}`
+    },
+    {
+      name: "delete",
+      phrase: "delete the selected object",
+      action: `{"delete": {}}`
     }
-
-    prompt += `\nNow respond to the following user request\n`;
-    return prompt;
-  }
+  ]
   
   const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+  const cosineSimilarity = (a: number[], b: number[]) => {
+    const dotProduct = a.reduce((acc, curr, i) => acc + curr * b[i], 0);
+    const normA = Math.sqrt(a.reduce((acc, curr) => acc + curr * curr, 0));
+    const normB = Math.sqrt(b.reduce((acc, curr) => acc + curr * curr, 0));
+    return dotProduct / (normA * normB);
+  }
+
+  interface IVectorStoreEntry {
+    vector: number[];
+    macroId?: Id<"macros">;
+    builtInId?: number
+  }
   
   const WorldBuilderPage = () => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -81,6 +149,8 @@ import { base64StringToBlob } from 'blob-util';
     const engineRef = useRef<Engine | null>(null);
     const worldBuilder = useRef<WorldBuilder | null>(null);
     const glbFiles = useRef<File[]>([]);
+    const extractorPipelieneRef = useRef<FeatureExtractionPipeline | null>(null);
+    const actionVectorStore = useRef<IVectorStoreEntry[]>([]);
     const [_forceUpdate, setForceUpdate] = useState(0);
     const [searchParams] = useSearchParams();
     const worldId = searchParams.get('worldId');
@@ -89,16 +159,6 @@ import { base64StringToBlob } from 'blob-util';
     const [controlPanelOpen, setControlPanelOpen] = useState(false);
     const macros = useQuery(api.macro.getMacros);
     const aiChatRef = useRef<HTMLTextAreaElement | null>(null);
-
-    const userPrompts: IPrompt[] = [];
-    if (macros) {
-      for (const macro of macros) {
-        for (let i = 0; i < macro.activationPhrases.length; i++) {
-          userPrompts.push({ user: macro.activationPhrases[i], ai: `{"actions":[{"${macro.name}":${macro.actions[i]}}]}` });
-        }
-      }
-    }
-    const macroPrompt = constructMacroPrompt(userPrompts);
 
     const { 
       aiLoading, 
@@ -132,6 +192,71 @@ import { base64StringToBlob } from 'blob-util';
     });
 
     const loadedWorld = useQuery(api.world.getWorld, worldId ? { id: worldId as Id<'worlds'> } : "skip");
+
+    const constructPrompt = (vectors: IVectorStoreEntry[]) => {
+      const contextInstructions: string[] = [];
+      for (const vector of vectors) {
+        if (vector.macroId !== undefined) {
+          const relevantMacro = macros!.find(macro => macro._id === vector.macroId);
+          const userPart = relevantMacro!.activationPhrases[0];
+          const aiPart = `{"${relevantMacro!.name}":${relevantMacro!.actions[0]}}`;
+          contextInstructions.push(`User: ${userPart}\nAI: ${aiPart}`);
+        } else if (vector.builtInId !== undefined) {
+          const action = builtInActions[vector.builtInId];
+          contextInstructions.push(`User: ${action.phrase}\nAI: ${action.action}`);
+        }
+      }
+
+      let prompt = `
+        you have the ability to create json objects correpsonding to user requets
+  
+        here are some examples
+      `
+
+      for (const instruction of contextInstructions) {
+        prompt += `\n${instruction}\n`;
+      }
+  
+      prompt += `\nNow respond to the following user request\n`;
+      return prompt;
+    }
+
+    const generateMacroVectorEntries = async () => { 
+      if (extractorPipelieneRef.current === null) { 
+        extractorPipelieneRef.current = await pipeline('feature-extraction', 'Xenova/bert-base-uncased', { revision: 'default' });
+      }
+
+      for (const macro of macros!) {
+        const activationPhrases = macro.activationPhrases;
+        const macroId = macro._id;
+
+        for (const phrase of activationPhrases) {
+          const vector = (await extractorPipelieneRef.current(phrase, { pooling: 'mean', normalize: true })).tolist()[0];
+          actionVectorStore.current.push({ vector, macroId });
+        }
+      }
+    }
+
+    useEffect(() => {
+      if (macros) {
+        generateMacroVectorEntries();
+      }
+    }, [macros]);
+
+    const generateBuiltinVectorEntries = async () => {
+        if (extractorPipelieneRef.current === null) { 
+          extractorPipelieneRef.current = await pipeline('feature-extraction', 'Xenova/bert-base-uncased', { revision: 'default' });
+        }
+
+        for (const action of builtInActions) {
+          const vector = (await extractorPipelieneRef.current(action.phrase, { pooling: 'mean', normalize: true })).tolist()[0];
+          actionVectorStore.current.push({ vector, builtInId: builtInActions.indexOf(action) });
+      }
+    }
+
+    useEffect(() => {
+      generateBuiltinVectorEntries();
+    }, []);
   
     useEffect(() => {
       if (canvasRef.current) {
@@ -222,17 +347,12 @@ import { base64StringToBlob } from 'blob-util';
   
     const parseAIResponse = async(response: string) => {
       const jsonStart = response.indexOf("{");
-      response = response.substring(jsonStart);
-      console.log(response);
+      const jsonEnd = response.lastIndexOf("}");
+      response = response.substring(jsonStart, jsonEnd + 1);
+  
       try {
         const json = JSON.parse(response);
-        console.log(json);
-        if (json["actions"]) {
-          for (const action of json["actions"]) {
-            takeAction(action);
-            await wait(500);
-          };
-        }
+        takeAction(json);
       } catch (error) {
         console.error("Error parsing AI response:", error);
       }
@@ -265,6 +385,12 @@ import { base64StringToBlob } from 'blob-util';
         worldBuilder.current?.scaleY(action["scaleY"]["amount"] as number);
       } else if (action["scaleZ"]) {
         worldBuilder.current?.scaleZ(action["scaleZ"]["amount"] as number);
+      } else if (action["setScaleX"]) {
+        worldBuilder.current?.setScaleX(action["setScaleX"]["amount"] as number);
+      } else if (action["setScaleY"]) {
+        worldBuilder.current?.setScaleY(action["setScaleY"]["amount"] as number);
+      }  else if (action["setScaleZ"]) {
+        worldBuilder.current?.setScaleY(action["setScaleZ"]["amount"] as number);
       } else if (action["delete"]) {
         worldBuilder.current?.deleteSelectedObject();
       } else {
@@ -279,8 +405,7 @@ import { base64StringToBlob } from 'blob-util';
       }
       const name = actionKeys[0];
       const input = action[name];
-      console.log(name, input);
-      console.log(macros);
+
 
       const macro = macros?.find(macro => macro.name === name);
       if (!macro) {
@@ -292,8 +417,6 @@ import { base64StringToBlob } from 'blob-util';
       const macroText = await response.text();
       const macroJson = JSON.parse(macroText);
 
-      console.log(macroJson);
-      console.log(input);
       const macroEngine = MacroNodeEngine.build(macroJson.nodes, macroJson.inputs, input, new BabylonDecorator(worldBuilder.current!));
       macroEngine.execute();
     }
@@ -404,11 +527,22 @@ import { base64StringToBlob } from 'blob-util';
                 rows={3} 
                 placeholder="Chat with the AI here..."
                 style={{ resize: 'vertical' }}
-                onKeyDown={async (e) => {
+                onKeyDown={async (e) => { 
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
-                    console.log(aiChatText);
-                    executeAIChat(aiChatText ?? "", macroPrompt, parseAIResponse);
+
+                    const query = (await extractorPipelieneRef.current!(aiChatText ?? "", { pooling: 'mean', normalize: true })).tolist()[0];
+
+                    // get top three most similar docs
+                    const similarities = actionVectorStore.current.map(doc => ({
+                      ...doc,
+                      similarity: cosineSimilarity(query, doc.vector)
+                    }));
+                    similarities.sort((a, b) => b.similarity - a.similarity);
+                    const topThreeDocs = similarities.slice(0, 3);
+                    const contextInformedPropmpt = constructPrompt(topThreeDocs);
+
+                    executeAIChat(aiChatText ?? "", contextInformedPropmpt, parseAIResponse);
                   }
                 }}
               />
@@ -605,9 +739,5 @@ import { base64StringToBlob } from 'blob-util';
       </Modal>
     )
   }
-
-  const Spacer = ({ height }: { height: number }) => {
-    return <div style={{ height }} />;
-  };
   
   export default WorldBuilderPage;

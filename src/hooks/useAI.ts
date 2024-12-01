@@ -12,7 +12,6 @@ export const useAI = () => {
       return;
     }
     const session = await window.ai.languageModel.create();
-    console.log(session);
     aiSession.current = session;
   };
 
