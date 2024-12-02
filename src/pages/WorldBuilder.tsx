@@ -394,7 +394,7 @@ import { FeatureExtractionPipeline, pipeline } from '@huggingface/transformers';
       } else if (action["setScaleY"]) {
         worldBuilder.current?.setScaleY(action["setScaleY"]["amount"] as number);
       }  else if (action["setScaleZ"]) {
-        worldBuilder.current?.setScaleY(action["setScaleZ"]["amount"] as number);
+        worldBuilder.current?.setScaleZ(action["setScaleZ"]["amount"] as number);
       } else if (action["delete"]) {
         worldBuilder.current?.deleteSelectedObject();
       } else {

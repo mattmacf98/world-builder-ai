@@ -13,4 +13,13 @@ Then you must configure your VITE_CONVEX_URL environment variable. Run
 Once your backend is running, you can run the following command to start the frontend:
 ```npm run dev```
 
-`
+# World Builder Keyboard Commands
+- toggle scale gizmo `s`
+- toggle translate gizmo `t`
+- toggle rotation gizmo `r`
+- move with arrow keys
+- delete selected object with `backspace`
+
+# Macro Page UI
+- right click to add nodes
+- drag connectors to link nodes together
